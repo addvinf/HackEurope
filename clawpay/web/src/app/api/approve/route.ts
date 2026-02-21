@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(outcome.result);
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[clawpay] /api/approve failed: ${message}`);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

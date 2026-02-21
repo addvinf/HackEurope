@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     if (outcome.result.status === "approved") {
       await sendTelegramMessage(
         chatId,
-        `ClawPay approved. Transaction ${outcome.result.transaction_id}, top-up ${outcome.result.topup_id}.`,
+        `ClawPay authorized. Transaction ${outcome.result.transaction_id}, top-up ${outcome.result.topup_id}. Complete checkout, then finalize.`,
       );
     } else {
       await sendTelegramMessage(chatId, "ClawPay rejected. Purchase was not approved.");

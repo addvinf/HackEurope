@@ -519,6 +519,8 @@ export default function DashboardPage() {
                     className={`font-semibold ${
                       tx.status === "completed"
                         ? "text-[#1d1d1f]"
+                        : tx.status === "authorized"
+                          ? "text-[#ff9f0a]"
                         : tx.status === "rejected"
                           ? "text-[#ff3b30]"
                           : "text-[#aeaeb2]"

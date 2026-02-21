@@ -13,69 +13,67 @@ type ResolveApprovalInput = {
   sourceTelegramChatId?: string;
 };
 
+function fail(status: number, error: string): ResolveApprovalOutcome {
+  return { ok: false, status, error };
+}
+
 export async function resolveApproval(input: ResolveApprovalInput): Promise<ResolveApprovalOutcome> {
   const supabase = getAdminClient();
 
-  const { data: approval } = await supabase
+  const { data: approval, error: approvalFetchError } = await supabase
     .from("approvals")
     .select("*")
     .eq("token", input.approvalToken)
     .eq("status", "pending")
     .single();
 
-  if (!approval) {
-    return {
-      ok: false,
-      status: 404,
-      error: "Approval not found or already resolved",
-    };
+  if (approvalFetchError || !approval) {
+    return fail(404, "Approval not found or already resolved");
   }
 
   if (input.expectedUserId && approval.user_id !== input.expectedUserId) {
-    return {
-      ok: false,
-      status: 403,
-      error: "Approval does not belong to this user",
-    };
+    return fail(403, "Approval does not belong to this user");
   }
 
   if (input.sourceTelegramChatId) {
-    const { data: config } = await supabase
+    const { data: config, error: configError } = await supabase
       .from("configs")
       .select("telegram_chat_id")
       .eq("user_id", approval.user_id)
       .single();
 
+    if (configError) {
+      return fail(500, "Failed to validate Telegram chat authorization");
+    }
+
     const expectedChatId = String(config?.telegram_chat_id || "").trim();
     if (!expectedChatId || expectedChatId !== String(input.sourceTelegramChatId)) {
-      return {
-        ok: false,
-        status: 403,
-        error: "Telegram chat is not authorized for this approval",
-      };
+      return fail(403, "Telegram chat is not authorized for this approval");
     }
   }
 
   if (new Date(approval.expires_at) < new Date()) {
-    await supabase
+    const { error: expireError } = await supabase
       .from("approvals")
       .update({ status: "expired", resolved_at: new Date().toISOString() })
       .eq("id", approval.id);
+    if (expireError) {
+      return fail(500, "Failed to mark approval as expired");
+    }
 
-    return {
-      ok: false,
-      status: 410,
-      error: "Approval has expired",
-    };
+    return fail(410, "Approval has expired");
   }
 
   if (!input.approved) {
-    await supabase
+    const { error: rejectError } = await supabase
       .from("approvals")
       .update({ status: "rejected", resolved_at: new Date().toISOString() })
       .eq("id", approval.id);
+    if (rejectError) {
+      return fail(500, "Failed to mark approval as rejected");
+    }
 
-    await supabase.from("transactions").insert({
+    const { error: rejectedTxnError } = await supabase.from("transactions").insert({
       user_id: approval.user_id,
       item: approval.item,
       amount: approval.amount,
@@ -85,38 +83,41 @@ export async function resolveApproval(input: ResolveApprovalInput): Promise<Reso
       status: "rejected",
       rejection_reason: "Rejected by user",
     });
+    if (rejectedTxnError) {
+      return fail(500, "Failed to record rejected transaction");
+    }
 
     return { ok: true, result: { status: "rejected" } };
   }
 
-  const { data: walletRow } = await supabase
+  const { data: walletRow, error: walletFetchError } = await supabase
     .from("wallets")
     .select("*")
     .eq("user_id", approval.user_id)
     .eq("status", "active")
     .single();
 
-  if (!walletRow) {
-    return {
-      ok: false,
-      status: 400,
-      error: "No wallet provisioned",
-    };
+  if (walletFetchError || !walletRow) {
+    return fail(400, "No wallet provisioned");
+  }
+
+  const walletBalance = Number(walletRow.balance);
+  const approvalAmount = Number(approval.amount);
+  if (walletBalance < approvalAmount) {
+    return fail(
+      400,
+      `Insufficient wallet balance. Current balance: $${walletBalance.toFixed(2)}, required: $${approvalAmount.toFixed(2)}`,
+    );
   }
 
   const topUpResult = await stripeMock.topUp({
     user_id: approval.user_id,
-    amount: approval.amount,
+    amount: approvalAmount,
     transaction_id: "",
-    timeout_seconds: 120,
+    timeout_seconds: 300,
   });
 
-  await supabase
-    .from("approvals")
-    .update({ status: "approved", resolved_at: new Date().toISOString() })
-    .eq("id", approval.id);
-
-  const { data: txn } = await supabase
+  const { data: txn, error: txnError } = await supabase
     .from("transactions")
     .insert({
       user_id: approval.user_id,
@@ -126,38 +127,78 @@ export async function resolveApproval(input: ResolveApprovalInput): Promise<Reso
       merchant: approval.merchant,
       category: approval.category,
       charge_id: walletRow.card_id,
-      status: "completed",
+      status: "authorized",
     })
     .select()
     .single();
+  if (txnError || !txn) {
+    await stripeMock.drain({ user_id: approval.user_id, reason: "approval_rollback_txn" });
+    return fail(500, "Failed to record approved transaction");
+  }
 
-  await supabase.from("topup_sessions").insert({
+  const { error: topupInsertError } = await supabase.from("topup_sessions").insert({
     user_id: approval.user_id,
     wallet_id: walletRow.id,
-    transaction_id: txn!.id,
+    transaction_id: txn.id,
     topup_id: topUpResult.topup_id,
-    amount: approval.amount,
+    amount: approvalAmount,
     status: "active",
     expires_at: new Date(topUpResult.expires_at * 1000).toISOString(),
   });
+  if (topupInsertError) {
+    await stripeMock.drain({ user_id: approval.user_id, reason: "approval_rollback_topup" });
+    return fail(500, "Failed to create top-up session");
+  }
 
-  await supabase
+  const newBalance = walletBalance - approvalAmount;
+  const { error: walletUpdateError } = await supabase
     .from("wallets")
-    .update({ balance: approval.amount })
+    .update({ balance: newBalance })
     .eq("id", walletRow.id);
+  if (walletUpdateError) {
+    await stripeMock.drain({ user_id: approval.user_id, reason: "approval_rollback_wallet" });
+    return fail(500, "Failed to update wallet balance");
+  }
 
-  await supabase
+  const { error: ledgerError } = await supabase.from("wallet_ledger").insert({
+    user_id: approval.user_id,
+    wallet_id: walletRow.id,
+    type: "purchase_debit",
+    amount: approvalAmount,
+    balance_after: newBalance,
+    reference_id: txn.id,
+    description: `Authorized purchase: ${approval.item} from ${approval.merchant}`,
+  });
+  if (ledgerError) {
+    await stripeMock.drain({ user_id: approval.user_id, reason: "approval_rollback_ledger" });
+    return fail(500, "Failed to record wallet ledger entry");
+  }
+
+  const { error: merchantUpsertError } = await supabase
     .from("known_merchants")
     .upsert(
       { user_id: approval.user_id, merchant: approval.merchant },
       { onConflict: "user_id,merchant" },
     );
+  if (merchantUpsertError) {
+    await stripeMock.drain({ user_id: approval.user_id, reason: "approval_rollback_merchant" });
+    return fail(500, "Failed to upsert known merchant");
+  }
+
+  const { error: approvalUpdateError } = await supabase
+    .from("approvals")
+    .update({ status: "approved", resolved_at: new Date().toISOString() })
+    .eq("id", approval.id);
+  if (approvalUpdateError) {
+    await stripeMock.drain({ user_id: approval.user_id, reason: "approval_rollback_approval" });
+    return fail(500, "Failed to finalize approval status");
+  }
 
   return {
     ok: true,
     result: {
       status: "approved",
-      transaction_id: txn!.id,
+      transaction_id: txn.id,
       topup_id: topUpResult.topup_id,
       card_last4: walletRow.card_last4,
     },

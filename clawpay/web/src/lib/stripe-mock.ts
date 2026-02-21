@@ -199,7 +199,7 @@ export const stripeMock = {
     }
     if (!card) throw new Error("No wallet provisioned for user");
 
-    const timeout = params.timeout_seconds ?? 120;
+    const timeout = params.timeout_seconds ?? 300;
     const topupId = `tu_${crypto.randomBytes(8).toString("hex")}`;
 
     // Fund the card

@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Update the topup session
-    await supabase
+    const { error: topupUpdateError } = await supabase
       .from("topup_sessions")
       .update({
         status: success ? "completed" : "drained",
@@ -109,6 +109,27 @@ export async function POST(request: NextRequest) {
         completed_at: new Date().toISOString(),
       })
       .eq("id", session.id);
+    if (topupUpdateError) {
+      return NextResponse.json(
+        { error: "Failed to finalize top-up session" },
+        { status: 500 },
+      );
+    }
+
+    // Settlement status is finalized by drain outcome.
+    if (session.transaction_id) {
+      const { error: txUpdateError } = await supabase
+        .from("transactions")
+        .update({ status: success ? "completed" : "cancelled" })
+        .eq("id", session.transaction_id)
+        .eq("user_id", userId);
+      if (txUpdateError) {
+        return NextResponse.json(
+          { error: "Failed to finalize transaction status" },
+          { status: 500 },
+        );
+      }
+    }
 
     // If checkout failed, refund the amount back to wallet and mark transaction cancelled
     if (!success && session.transaction_id) {
@@ -140,11 +161,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      await supabase
-        .from("transactions")
-        .update({ status: "cancelled" })
-        .eq("id", session.transaction_id)
-        .eq("user_id", userId);
+      // Transaction status already updated to cancelled above.
     }
     // On success: no wallet balance change (already deducted during purchase)
 
