@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
 import type { Config } from "@/lib/types";
+
+const TELEGRAM_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "ClawPayBot";
 
 interface RulesFormProps {
   config: Config;
@@ -39,6 +42,59 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
   );
   const [sendReceipts, setSendReceipts] = useState(config.send_receipts ?? true);
   const [weeklySummary, setWeeklySummary] = useState(config.weekly_summary ?? true);
+
+  /* Telegram deep-link onboarding */
+  const supabase = createClient();
+  const [telegramLinked, setTelegramLinked] = useState(!!config.telegram_chat_id);
+  const [telegramLinking, setTelegramLinking] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  async function handleConnectTelegram() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const code = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+    await supabase.from("telegram_link_codes").insert({
+      user_id: user.id,
+      code,
+      expires_at: expiresAt,
+    });
+
+    window.open(`https://t.me/${TELEGRAM_BOT}?start=${code}`, "_blank");
+
+    setTelegramLinking(true);
+    pollTelegramLink(user.id);
+  }
+
+  function pollTelegramLink(userId: string) {
+    if (pollRef.current) clearInterval(pollRef.current);
+    const start = Date.now();
+    pollRef.current = setInterval(async () => {
+      if (Date.now() - start > 5 * 60 * 1000) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        setTelegramLinking(false);
+        return;
+      }
+      const { data } = await supabase
+        .from("configs")
+        .select("telegram_chat_id")
+        .eq("user_id", userId)
+        .single();
+      if (data?.telegram_chat_id) {
+        setTelegramLinked(true);
+        setTelegramLinking(false);
+        if (pollRef.current) clearInterval(pollRef.current);
+      }
+    }, 2000);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -185,6 +241,36 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
               </button>
             ))}
           </div>
+          {approvalChannel === "telegram" && (
+            <div className="mt-3">
+              {telegramLinked ? (
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#34c759]/10 border border-[#34c759]/20">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="8" fill="#34c759" />
+                    <path d="M4.5 8L7 10.5L11.5 5.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-sm font-medium text-[#1d1d1f]">Telegram connected</span>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleConnectTelegram}
+                    disabled={telegramLinking}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium text-sm transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
+                  >
+                    <img src="/telegram-logo.png" alt="" className="w-5 h-5 object-contain brightness-0 invert" />
+                    {telegramLinking ? "Waiting for connection..." : "Connect Telegram"}
+                  </button>
+                  {telegramLinking && (
+                    <p className="text-xs text-[#86868b] mt-2 text-center">
+                      Press Start in Telegram, then come back here.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
         <Slider
           label="Approval timeout"

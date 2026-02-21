@@ -1,15 +1,32 @@
 {
   "name": "@openclaw/clawpay",
   "version": "0.1.0",
-  "private": true,
   "description": "ClawPay — secure payment layer for OpenClaw with spending guardrails",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/addvinf/HackEurope.git",
+    "directory": "clawpay/plugin"
+  },
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "payments",
+    "spending-limits",
+    "virtual-card"
+  ],
   "bin": {
     "clawpay-setup": "./bin/setup.sh"
   },
-  "devDependencies": {
-    "typescript": "^5.0.0"
-  },
+  "files": [
+    "index.ts",
+    "src/",
+    "skills/",
+    "bin/",
+    "openclaw.plugin.json",
+    "tsconfig.json"
+  ],
   "openclaw": {
     "extensions": [
       "./index.ts"
@@ -17,5 +34,8 @@
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.48"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
   }
 }
