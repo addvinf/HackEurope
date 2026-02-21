@@ -202,6 +202,22 @@ select {
   50%      { box-shadow: 0 0 24px 4px rgba(0, 113, 227, 0.25); }
 }
 
+/* Dashboard page transitions */
+@keyframes pageExit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-6px) scale(0.99); }
+}
+@keyframes pageEnter {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.99); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.page-exit {
+  animation: pageExit 0.15s ease-in forwards;
+}
+.page-enter {
+  animation: pageEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* Scroll-reveal utilities */
 .scroll-reveal {
   opacity: 0;

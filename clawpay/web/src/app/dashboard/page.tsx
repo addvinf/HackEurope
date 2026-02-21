@@ -174,11 +174,7 @@ export default function DashboardPage() {
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-[#86868b]">
-        Loading...
-      </div>
-    );
+    return <div className="h-64" />;
   }
 
   return (
@@ -200,9 +196,14 @@ export default function DashboardPage() {
               <p className="text-4xl font-semibold mt-1 tracking-tight">
                 ${Number(wallet.balance).toFixed(2)}
               </p>
-              <p className="font-mono text-sm mt-2 text-[#86868b]">
-                {wallet.card_brand.toUpperCase()} &bull;&bull;&bull;&bull; {wallet.card_last4}
-              </p>
+              <div className="flex items-center gap-1.5 font-mono text-sm mt-2 text-[#86868b]">
+                {wallet.card_brand === "visa" ? (
+                  <img src="/visa-logo.png" alt="Visa" className="h-4 opacity-50" />
+                ) : (
+                  <span>{wallet.card_brand.toUpperCase()}</span>
+                )}
+                <span>&bull;&bull;&bull;&bull; {wallet.card_last4}</span>
+              </div>
             </div>
             <div className="text-right flex flex-col items-end gap-3">
               {activeTopUp && (
@@ -375,9 +376,15 @@ export default function DashboardPage() {
                       <div className="mb-6">
                         <label className="text-[13px] font-medium text-[#1a1f36] block mb-2">Payment method</label>
                         <div className="bg-white border border-[#e3e8ee] rounded-md px-3 py-3 flex items-center gap-3 shadow-[0_1px_1px_rgba(0,0,0,0.03)]">
-                          <div className="w-8 h-5 bg-[#1a1f36] rounded-sm flex items-center justify-center">
-                            <span className="text-[8px] text-white font-bold">{wallet.card_brand.toUpperCase()}</span>
-                          </div>
+                          {wallet.card_brand === "visa" ? (
+                            <div className="w-8 h-5 bg-white border border-[#e3e8ee] rounded-sm flex items-center justify-center">
+                              <img src="/visa-logo.png" alt="Visa" className="h-3" />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-5 bg-[#1a1f36] rounded-sm flex items-center justify-center">
+                              <span className="text-[8px] text-white font-bold">{wallet.card_brand.toUpperCase()}</span>
+                            </div>
+                          )}
                           <span className="text-sm text-[#1a1f36]">
                             &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; {wallet.card_last4}
                           </span>

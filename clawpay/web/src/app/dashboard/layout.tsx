@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -22,6 +22,19 @@ export default function DashboardLayout({
   const router = useRouter();
   const supabase = createClient();
   const [setupDone, setSetupDone] = useState<boolean | null>(null); // null = loading
+  const [transitioning, setTransitioning] = useState(false);
+  const prevPath = useRef(pathname);
+
+  useEffect(() => {
+    if (pathname !== prevPath.current) {
+      setTransitioning(true);
+      const t = setTimeout(() => {
+        setTransitioning(false);
+        prevPath.current = pathname;
+      }, 150);
+      return () => clearTimeout(t);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     async function checkSetup() {
@@ -57,13 +70,9 @@ export default function DashboardLayout({
     router.push("/login");
   }
 
-  // Show nothing while checking setup status to avoid flash
+  // Show empty shell while checking setup status — no text, just background
   if (setupDone === null) {
-    return (
-      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center text-[#86868b]">
-        Loading...
-      </div>
-    );
+    return <div className="min-h-screen bg-[#f5f5f7]" />;
   }
 
   return (
@@ -104,7 +113,14 @@ export default function DashboardLayout({
           </button>
         </div>
       </nav>
-      <main className="max-w-6xl mx-auto px-6 py-10">{children}</main>
+      <main className="max-w-6xl mx-auto px-6 py-10">
+          <div
+            key={transitioning ? "exit" : pathname}
+            className={transitioning ? "page-exit" : "page-enter"}
+          >
+            {children}
+          </div>
+        </main>
     </div>
   );
 }

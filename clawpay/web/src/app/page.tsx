@@ -457,82 +457,7 @@ export default function Home() {
       <MonitoringSection />
 
       {/* ── 7. Stripe Deposits ──────────────────────────── */}
-      <Section className="bg-white">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight">
-            Fund in seconds.
-          </h2>
-          <p className="mt-4 text-[#86868b] text-lg max-w-lg mx-auto">
-            Add funds via Stripe. Choose a preset or enter a custom amount. Your
-            agent&apos;s balance updates instantly.
-          </p>
-        </div>
-
-        {/* Stripe checkout mockup */}
-        <div className="max-w-3xl mx-auto rounded-3xl overflow-hidden shadow-2xl grid sm:grid-cols-2">
-          {/* Dark summary side */}
-          <div className="bg-[#1d1d1f] text-white p-8 flex flex-col justify-between">
-            <div>
-              <div className="text-sm text-[#86868b] mb-1">ClawPay</div>
-              <div className="text-3xl font-semibold">$100.00</div>
-              <div className="text-sm text-[#86868b] mt-4">
-                Add funds to wallet
-              </div>
-            </div>
-            <div className="flex gap-3 mt-8">
-              {[25, 50, 100, 250].map((amt) => (
-                <div
-                  key={amt}
-                  className={`text-sm px-3 py-1.5 rounded-lg font-medium ${
-                    amt === 100
-                      ? "bg-[#0071e3] text-white"
-                      : "bg-white/10 text-[#86868b]"
-                  }`}
-                >
-                  ${amt}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Light form side */}
-          <div className="bg-white p-8">
-            <div className="space-y-4">
-              <div>
-                <div className="text-xs text-[#86868b] mb-1">Email</div>
-                <div className="border border-[#e5e5ea] rounded-lg px-3 py-2.5 text-sm text-[#86868b]">
-                  agent@company.com
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-[#86868b] mb-1">
-                  Card information
-                </div>
-                <div className="border border-[#e5e5ea] rounded-lg px-3 py-2.5 text-sm text-[#86868b]">
-                  4242 4242 4242 4242
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="border border-[#e5e5ea] rounded-lg px-3 py-2.5 text-sm text-[#86868b]">
-                  12 / 27
-                </div>
-                <div className="border border-[#e5e5ea] rounded-lg px-3 py-2.5 text-sm text-[#86868b]">
-                  CVC
-                </div>
-              </div>
-              <div className="w-full bg-[#0071e3] text-white rounded-lg py-3 font-medium text-sm text-center">
-                Pay $100.00
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-2 mt-6 text-xs text-[#86868b]">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="#86868b">
-                <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
-              </svg>
-              Powered by Stripe
-            </div>
-          </div>
-        </div>
-      </Section>
+      <StripeSection />
 
       {/* ── 8. Final CTA ────────────────────────────────── */}
       <Section className="bg-gradient-to-b from-[#1d1d1f] to-black text-white">
@@ -728,5 +653,239 @@ function MonitoringSection() {
         </div>
       </div>
     </section>
+  );
+}
+
+/* ── Typewriter hook ────────────────────────────────────── */
+function useTypewriter(text: string, speed: number, startDelay: number, trigger: boolean) {
+  const [displayed, setDisplayed] = useState("");
+  const [done, setDone] = useState(false);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (!trigger || started.current) return;
+    started.current = true;
+    let i = 0;
+    const timeout = setTimeout(() => {
+      const interval = setInterval(() => {
+        i++;
+        setDisplayed(text.slice(0, i));
+        if (i >= text.length) {
+          clearInterval(interval);
+          setDone(true);
+        }
+      }, speed);
+    }, startDelay);
+    return () => clearTimeout(timeout);
+  }, [trigger, text, speed, startDelay]);
+
+  return { displayed, done };
+}
+
+/* ── Stripe checkout with typewriter ────────────────────── */
+function StripeSection() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [flyAway, setFlyAway] = useState(false);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const email = useTypewriter("john@company.com", 50, 400, visible);
+  const card = useTypewriter("4242 4242 4242 4242", 40, 1600, visible);
+  const expiry = useTypewriter("12 / 27", 60, 3000, visible);
+  const cvc = useTypewriter("424", 80, 3600, visible);
+
+  // Trigger submit after CVC is done
+  useEffect(() => {
+    if (!cvc.done) return;
+    const t = setTimeout(() => setSubmitted(true), 600);
+    return () => clearTimeout(t);
+  }, [cvc.done]);
+
+  // Fly away after success
+  useEffect(() => {
+    if (!submitted) return;
+    const t = setTimeout(() => setFlyAway(true), 1200);
+    return () => clearTimeout(t);
+  }, [submitted]);
+
+  const cursor = (
+    <span className="inline-block w-[2px] h-[14px] bg-[#0071e3] ml-[1px] align-middle card-cursor" />
+  );
+
+  return (
+    <Section className="bg-white">
+      <div className="text-center mb-16">
+        <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight">
+          Fund in seconds.
+        </h2>
+        <p className="mt-4 text-[#86868b] text-lg max-w-lg mx-auto">
+          Add funds via Stripe. Choose a preset or enter a custom amount. Your
+          agent&apos;s balance updates instantly.
+        </p>
+      </div>
+
+      <div
+        ref={sectionRef}
+        className={`max-w-3xl mx-auto rounded-3xl overflow-hidden shadow-2xl grid sm:grid-cols-2 transition-all duration-[800ms] ease-in ${
+          flyAway
+            ? "opacity-0 -translate-y-16 scale-95"
+            : "opacity-100 translate-y-0 scale-100"
+        }`}
+      >
+        {/* Dark summary side */}
+        <div className="bg-[#1d1d1f] text-white p-8 flex flex-col justify-between">
+          <div>
+            <div className="text-sm text-[#86868b] mb-1">ClawPay</div>
+            <div className="text-3xl font-semibold">$100.00</div>
+            <div className="text-sm text-[#86868b] mt-4">
+              Add funds to wallet
+            </div>
+          </div>
+          <div className="flex gap-3 mt-8">
+            {[25, 50, 100, 250].map((amt) => (
+              <div
+                key={amt}
+                className={`text-sm px-3 py-1.5 rounded-lg font-medium ${
+                  amt === 100
+                    ? "bg-[#0071e3] text-white"
+                    : "bg-white/10 text-[#86868b]"
+                }`}
+              >
+                ${amt}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Light form side — typewriter fills */}
+        <div className="bg-white p-8">
+          <div className="space-y-4">
+            {/* Email */}
+            <div>
+              <div className="text-xs text-[#86868b] mb-1">Email</div>
+              <div
+                className={`border rounded-lg px-3 py-2.5 text-sm min-h-[38px] transition-colors duration-200 ${
+                  visible && !email.done
+                    ? "border-[#0071e3] ring-1 ring-[#0071e3]/20"
+                    : "border-[#e5e5ea]"
+                }`}
+              >
+                <span className="text-[#1d1d1f]">{email.displayed}</span>
+                {visible && !email.done && cursor}
+                {!visible && (
+                  <span className="text-[#86868b]">agent@company.com</span>
+                )}
+              </div>
+            </div>
+
+            {/* Card number */}
+            <div>
+              <div className="text-xs text-[#86868b] mb-1">Card information</div>
+              <div
+                className={`border rounded-lg px-3 py-2.5 text-sm min-h-[38px] transition-colors duration-200 ${
+                  email.done && !card.done
+                    ? "border-[#0071e3] ring-1 ring-[#0071e3]/20"
+                    : "border-[#e5e5ea]"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[#1d1d1f] tabular-nums">{card.displayed}</span>
+                    {email.done && !card.done && cursor}
+                  </div>
+                  {/* Visa logo fades in after first 4 digits */}
+                  <svg
+                    width="36"
+                    height="12"
+                    viewBox="0 0 780 500"
+                    className={`shrink-0 transition-opacity duration-300 ${
+                      card.displayed.length >= 4 ? "opacity-100" : "opacity-0"
+                    }`}
+                  >
+                    <path d="M293.2 348.73l33.36-195.76h53.35l-33.38 195.76zm246.11-191.54c-10.57-3.97-27.16-8.2-47.89-8.2-52.84 0-90.08 26.58-90.33 64.64-.5 28.12 26.53 43.81 46.76 53.17 20.73 9.59 27.69 15.72 27.69 24.28-.25 13.1-16.61 19.11-31.96 19.11-21.36 0-32.69-2.96-50.22-10.27l-6.88-3.11-7.49 43.81c12.46 5.47 35.54 10.2 59.47 10.45 56.18 0 92.67-26.21 93.05-66.9.25-22.3-14.07-39.27-44.95-53.3-18.72-9.08-30.19-15.15-30.19-24.39.25-8.33 9.72-16.91 30.82-16.91 17.6-.25 30.31 3.58 40.28 7.55l4.82 2.24 7.01-41.87zm137.31-4.22h-41.27c-12.77 0-22.36 3.46-27.94 16.16l-79.24 179.59h56.06s9.16-24.14 11.23-29.43l68.33.08c1.6 6.86 6.5 29.35 6.5 29.35h49.56l-43.23-195.75zM639.03 299c4.4-11.27 21.36-54.67 21.36-54.67-.25.5 4.4-11.39 7.11-18.76l3.63 16.97s10.27 46.88 12.4 56.72h-44.5zM259.65 152.97L207.06 285.5l-5.6-27.19c-9.72-31.21-40.03-65.02-73.98-81.94l47.77 171.98h56.55l84.12-195.38h-56.27" fill="#1a1f71" />
+                    <path d="M146.92 152.97H60.88l-.62 3.46c67.08 16.22 111.48 55.41 129.83 102.47L171.82 169.5c-3.15-12.08-12.58-16.03-24.9-16.53" fill="#f9a533" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Expiry + CVC */}
+            <div className="grid grid-cols-2 gap-3">
+              <div
+                className={`border rounded-lg px-3 py-2.5 text-sm min-h-[38px] transition-colors duration-200 ${
+                  card.done && !expiry.done
+                    ? "border-[#0071e3] ring-1 ring-[#0071e3]/20"
+                    : "border-[#e5e5ea]"
+                }`}
+              >
+                <span className="text-[#1d1d1f] tabular-nums">{expiry.displayed}</span>
+                {card.done && !expiry.done && cursor}
+              </div>
+              <div
+                className={`border rounded-lg px-3 py-2.5 text-sm min-h-[38px] transition-colors duration-200 ${
+                  expiry.done && !cvc.done
+                    ? "border-[#0071e3] ring-1 ring-[#0071e3]/20"
+                    : "border-[#e5e5ea]"
+                }`}
+              >
+                <span className="text-[#1d1d1f] tabular-nums">{cvc.displayed}</span>
+                {expiry.done && !cvc.done && cursor}
+              </div>
+            </div>
+
+            {/* Pay button */}
+            <div
+              className={`w-full rounded-lg py-3 font-medium text-sm text-center transition-all duration-500 ${
+                submitted
+                  ? "bg-[#34c759] text-white scale-[1.02]"
+                  : "bg-[#0071e3] text-white"
+              }`}
+            >
+              {submitted ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Payment successful
+                </span>
+              ) : (
+                "Pay $100.00"
+              )}
+            </div>
+          </div>
+          <div className="flex items-center justify-center gap-2 mt-6 text-xs text-[#86868b]">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#86868b">
+              <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
+            </svg>
+            Powered by Stripe
+          </div>
+        </div>
+      </div>
+    </Section>
   );
 }

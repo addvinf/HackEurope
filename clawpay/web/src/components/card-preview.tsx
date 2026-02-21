@@ -33,13 +33,21 @@ const brandColors: Record<string, string> = {
   unknown: "from-[#2c2c2e] to-[#1c1c1e]",
 };
 
-const brandLogos: Record<string, string> = {
-  visa: "VISA",
-  mastercard: "MC",
-  amex: "AMEX",
-  discover: "DISC",
-  unknown: "",
+const brandLogos: Record<string, { type: "image"; src: string } | { type: "text"; label: string }> = {
+  visa: { type: "image", src: "/visa-logo.png" },
+  mastercard: { type: "text", label: "MC" },
+  amex: { type: "text", label: "AMEX" },
+  discover: { type: "text", label: "DISC" },
+  unknown: { type: "text", label: "" },
 };
+
+function BrandLogo({ brand }: { brand: string }) {
+  const logo = brandLogos[brand] || brandLogos.unknown;
+  if (logo.type === "image") {
+    return <img src={logo.src} alt={brand} className="h-6 brightness-0 invert" />;
+  }
+  return <span className="text-lg font-semibold tracking-wider">{logo.label}</span>;
+}
 
 function formatCardNumber(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 16);
@@ -50,7 +58,6 @@ function formatCardNumber(raw: string): string {
 export function CardPreview(props: CardPreviewProps) {
   const { brand, interactive } = props;
   const gradient = brandColors[brand] || brandColors.unknown;
-  const logo = brandLogos[brand] || "";
   const isFlipped = interactive && props.activeField === "cvc";
 
   if (!interactive) {
@@ -62,7 +69,7 @@ export function CardPreview(props: CardPreviewProps) {
       >
         <div className="flex justify-between items-start">
           <span className="text-xs uppercase tracking-widest opacity-60 font-medium">ClawPay</span>
-          <span className="text-lg font-semibold tracking-wider">{logo}</span>
+          <BrandLogo brand={brand} />
         </div>
         <div>
           <p className="font-mono text-lg tracking-[0.15em] mb-4">
@@ -88,7 +95,7 @@ export function CardPreview(props: CardPreviewProps) {
     >
       <div className="flex justify-between items-start">
         <span className="text-xs uppercase tracking-widest opacity-60 font-medium">ClawPay</span>
-        <span className="text-lg font-semibold tracking-wider">{logo}</span>
+        <BrandLogo brand={brand} />
       </div>
       <div>
         {/* Card number */}

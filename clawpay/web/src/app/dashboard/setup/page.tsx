@@ -368,11 +368,7 @@ export default function SetupPage() {
 
   /* ── Loading state ── */
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-[#86868b]">
-        Loading...
-      </div>
-    );
+    return <div className="h-64" />;
   }
 
   /* ── Animation style helper ── */
