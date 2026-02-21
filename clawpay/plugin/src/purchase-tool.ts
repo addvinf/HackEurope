@@ -46,7 +46,7 @@ export function createPurchaseTool(client: ClawPayClient) {
           content: [
             {
               type: "text" as const,
-              text: "ClawPay is not paired. Ask the user to generate a pairing code at their ClawPay dashboard and use /clawpay-pair <code> to connect.",
+              text: "ClawPay is not paired in this gateway instance. Ask the user to generate a pairing code in the ClawPay dashboard and run /clawpay-pair <code>.",
             },
           ],
         };
@@ -207,13 +207,28 @@ export function createPurchaseTool(client: ClawPayClient) {
           details: result,
         };
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Unknown error";
+        const message = err instanceof Error ? err.message : "Unknown error";
+        const lower = message.toLowerCase();
+        const authIssue =
+          lower.includes("authentication failed") ||
+          lower.includes("401") ||
+          lower.includes("pair again") ||
+          lower.includes("not paired");
+
+        const text = authIssue
+          ? [
+              `ClawPay purchase failed: ${message}`,
+              "",
+              "Pairing may be expired or missing in this runtime.",
+              "Recovery: generate a new 6-digit pairing code and run /clawpay-pair <code>, then retry.",
+            ].join("\n")
+          : `ClawPay purchase failed: ${message}`;
+
         return {
           content: [
             {
               type: "text" as const,
-              text: `ClawPay purchase failed: ${message}`,
+              text,
             },
           ],
         };
