@@ -464,15 +464,27 @@ export default function SetupPage() {
               />
             </div>
 
-            <CardInputFields
-              cardNumber={cardNumber}
-              name={nameOnCard}
-              expMonth={expMonth}
-              expYear={expYear}
-              cvc={cvc}
-              onFieldChange={handleCardFieldChange}
-              onFieldFocus={setActiveCardField}
-            />
+            <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-[#86868b]">
+                    <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M5 7V5C5 3.34 6.34 2 8 2C9.66 2 11 3.34 11 5V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  <span className="text-xs text-[#86868b] font-medium">Payment details</span>
+                </div>
+                <img src="/stripe-logo.png" alt="Stripe" className="h-4 opacity-40" />
+              </div>
+              <CardInputFields
+                cardNumber={cardNumber}
+                name={nameOnCard}
+                expMonth={expMonth}
+                expYear={expYear}
+                cvc={cvc}
+                onFieldChange={handleCardFieldChange}
+                onFieldFocus={setActiveCardField}
+              />
+            </div>
 
             <form onSubmit={handleAddCard}>
               {continueButton(
@@ -481,7 +493,7 @@ export default function SetupPage() {
                   : saving
                     ? "Saving..."
                     : "Add card & continue",
-                undefined,
+                () => {},
                 saving || provisioningWallet || cardNumber.replace(/\D/g, "").length < 15 || !expMonth || !expYear || !cvc,
               )}
             </form>
@@ -494,6 +506,14 @@ export default function SetupPage() {
                 Skip — use existing card
               </button>
             )}
+
+            {/* Powered by Stripe */}
+            <div className="flex items-center justify-center gap-1.5 mt-4">
+              <svg className="h-5 opacity-40" viewBox="0 0 60 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" clipRule="evenodd" d="M60 12.8C60 8.55 57.95 5.18 54.02 5.18C50.07 5.18 47.7 8.55 47.7 12.77C47.7 17.69 50.42 20.33 54.35 20.33C56.27 20.33 57.72 19.87 58.82 19.23V15.98C57.72 16.55 56.45 16.9 54.85 16.9C53.27 16.9 51.87 16.35 51.7 14.42H59.97C59.97 14.2 60 13.28 60 12.8ZM51.65 11.42C51.65 9.57 52.72 8.82 53.99 8.82C55.24 8.82 56.25 9.57 56.25 11.42H51.65ZM41.3 5.18C39.7 5.18 38.67 5.93 38.1 6.45L37.87 5.43H34.47V24.75L38.22 23.95L38.24 19.28C38.82 19.7 39.67 20.33 41.27 20.33C44.52 20.33 47.47 17.73 47.47 12.6C47.45 7.93 44.47 5.18 41.3 5.18ZM40.42 16.78C39.37 16.78 38.74 16.4 38.24 15.93L38.22 9.85C38.74 9.33 39.39 8.97 40.42 8.97C42.09 8.97 43.24 10.85 43.24 12.85C43.24 14.9 42.12 16.78 40.42 16.78ZM29.15 4.18L32.92 3.38V0L29.15 0.78V4.18ZM29.15 5.43H32.92V20.08H29.15V5.43ZM25.1 6.65L24.85 5.43H21.52V20.08H25.27V9.6C26.17 8.43 27.67 8.65 28.12 8.83V5.43C27.65 5.23 25.99 4.88 25.1 6.65ZM17.52 1.55L13.85 2.33L13.82 16.18C13.82 18.53 15.6 20.35 17.95 20.35C19.25 20.35 20.2 20.1 20.72 19.83V16.53C20.22 16.73 17.5 17.53 17.5 15.18V9.08H20.72V5.43H17.5L17.52 1.55ZM5.62 9.85C5.62 9.13 6.2 8.83 7.17 8.83C8.57 8.83 10.32 9.25 11.72 10V6.38C10.2 5.73 8.7 5.48 7.17 5.48C3.62 5.48 1.25 7.33 1.25 10.33C1.25 15.05 7.77 14.28 7.77 16.33C7.77 17.18 7.05 17.48 6.02 17.48C4.5 17.48 2.57 16.83 1.02 16L0 19.5C1.7 20.25 3.42 20.58 5.07 20.58C8.72 20.58 11.22 18.8 11.22 15.75C11.17 10.65 4.62 11.58 4.62 9.58L5.62 9.85Z" fill="#6772E5"/>
+              </svg>
+              <span className="text-xs text-[#86868b]">Secure payment by Stripe</span>
+            </div>
           </div>
         );
 
@@ -617,8 +637,8 @@ export default function SetupPage() {
 
             <div className="grid grid-cols-3 gap-3">
               {([
-                { id: "whatsapp", emoji: "💬", label: "WhatsApp" },
-                { id: "telegram", emoji: "✈️", label: "Telegram" },
+                { id: "whatsapp", logo: "/whatsapp-logo.svg", label: "WhatsApp" },
+                { id: "telegram", logo: "/telegram-logo.png", label: "Telegram" },
                 { id: "web", emoji: "🌐", label: "Web" },
               ] as const).map((ch) => (
                 <button
@@ -631,7 +651,11 @@ export default function SetupPage() {
                       : "border-black/[0.06] bg-white hover:border-black/[0.12]"
                   }`}
                 >
-                  <span className="text-3xl">{ch.emoji}</span>
+                  {"logo" in ch ? (
+                    <img src={ch.logo} alt={ch.label} className="w-8 h-8 object-contain" />
+                  ) : (
+                    <span className="text-3xl">{ch.emoji}</span>
+                  )}
                   <span className="text-sm font-medium">{ch.label}</span>
                   {approvalChannel === ch.id && (
                     <div className="absolute top-2 right-2 w-5 h-5 bg-[#0071e3] rounded-full flex items-center justify-center">

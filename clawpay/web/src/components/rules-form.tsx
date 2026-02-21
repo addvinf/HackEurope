@@ -123,15 +123,38 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
         </h3>
         <div>
           <label className="text-sm font-medium mb-2 block">Channel</label>
-          <select
-            value={approvalChannel}
-            onChange={(e) => setApprovalChannel(e.target.value)}
-            className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
-          >
-            <option value="whatsapp">WhatsApp</option>
-            <option value="telegram">Telegram</option>
-            <option value="web">Web only</option>
-          </select>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { id: "whatsapp", logo: "/whatsapp-logo.svg", label: "WhatsApp" },
+              { id: "telegram", logo: "/telegram-logo.png", label: "Telegram" },
+              { id: "web", emoji: "🌐", label: "Web" },
+            ] as const).map((ch) => (
+              <button
+                key={ch.id}
+                type="button"
+                onClick={() => setApprovalChannel(ch.id)}
+                className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all hover:scale-[1.02] active:scale-[0.98] ${
+                  approvalChannel === ch.id
+                    ? "border-[#0071e3] bg-[#0071e3]/[0.04]"
+                    : "border-black/[0.06] bg-[#f5f5f7] hover:border-black/[0.12]"
+                }`}
+              >
+                {"logo" in ch ? (
+                  <img src={ch.logo} alt={ch.label} className="w-6 h-6 object-contain" />
+                ) : (
+                  <span className="text-2xl">{ch.emoji}</span>
+                )}
+                <span className="text-xs font-medium">{ch.label}</span>
+                {approvalChannel === ch.id && (
+                  <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#0071e3] rounded-full flex items-center justify-center">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                      <path d="M2.5 6L5 8.5L9.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
         <Slider
           label="Approval timeout"

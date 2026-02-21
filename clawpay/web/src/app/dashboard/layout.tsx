@@ -71,8 +71,8 @@ export default function DashboardLayout({
       <nav className="bg-white/80 backdrop-blur-xl border-b border-black/[0.06] sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-8">
-            <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
-              ClawPay
+            <Link href="/dashboard" className="flex items-center">
+              <img src="/clawbotlogo.png" alt="ClawPay" className="h-7" />
             </Link>
             <div className="flex gap-1">
               {navItems.map((item) => {

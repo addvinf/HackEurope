@@ -46,8 +46,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] flex flex-col items-center justify-center px-4">
-      <Link href="/" className="text-2xl font-semibold mb-10 tracking-tight">
-        ClawPay
+      <Link href="/" className="mb-10">
+        <img src="/clawbotlogo.png" alt="ClawPay" className="h-10" />
       </Link>
 
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.08)] p-8">
