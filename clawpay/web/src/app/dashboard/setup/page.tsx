@@ -200,11 +200,16 @@ export default function SetupPage() {
     const code = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
-    await supabase.from("telegram_link_codes").insert({
+    const { error: insertErr } = await supabase.from("telegram_link_codes").insert({
       user_id: user.id,
       code,
       expires_at: expiresAt,
     });
+
+    if (insertErr) {
+      console.error("Failed to insert telegram link code:", insertErr);
+      return;
+    }
 
     window.open(`https://t.me/${TELEGRAM_BOT}?start=${code}`, "_blank");
 
@@ -824,9 +829,18 @@ export default function SetupPage() {
                       {telegramLinking ? "Waiting for connection..." : "Connect Telegram"}
                     </button>
                     {telegramLinking && (
-                      <p className="text-xs text-[#86868b] mt-2 text-center">
-                        Press Start in Telegram, then come back here.
-                      </p>
+                      <div className="mt-2 text-center">
+                        <p className="text-xs text-[#86868b]">
+                          Press Start in Telegram, then come back here.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => { setTelegramLinking(false); if (pollRef.current) clearInterval(pollRef.current); }}
+                          className="text-xs text-[#0071e3] hover:text-[#0077ed] font-medium mt-2"
+                        >
+                          Try again with a new code
+                        </button>
+                      </div>
                     )}
                   </>
                 )}
