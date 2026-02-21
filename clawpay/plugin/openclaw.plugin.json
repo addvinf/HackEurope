@@ -1,0 +1,14 @@
+{
+  "id": "clawpay",
+  "name": "ClawPay",
+  "description": "Secure payment layer — lets OpenClaw make purchases with spending guardrails.",
+  "skills": ["./skills"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiUrl": { "type": "string", "default": "http://localhost:3000" },
+      "apiToken": { "type": "string", "default": "" }
+    },
+    "additionalProperties": false
+  }
+}

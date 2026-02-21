@@ -1,0 +1,18 @@
+{
+  "name": "@openclaw/clawpay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ClawPay — secure payment layer for OpenClaw with spending guardrails",
+  "type": "module",
+  "bin": {
+    "clawpay-setup": "./bin/setup.sh"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
