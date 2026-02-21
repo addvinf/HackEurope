@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
+<<<<<<< HEAD
 import { formatApprovalMessage, sendTelegramMessage } from "@/lib/telegram";
 import { getAdminClient, getUserFromApiToken } from "@/lib/supabase-admin";
 import { wallet } from "@/lib/stripe";
+=======
+import { stripeMock } from "@/lib/stripe-mock";
+>>>>>>> 5430eb8 (ux changes)
 import type { PurchaseRequest, PurchaseResult } from "@/lib/types";
 
 interface RulesConfig {
@@ -219,6 +223,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check wallet balance
+    if (Number(walletRow.balance) < amount) {
+      return NextResponse.json(
+        {
+          status: "rejected",
+          reason: `Insufficient wallet balance. Current balance: $${Number(walletRow.balance).toFixed(2)}, purchase amount: $${amount.toFixed(2)}. Add funds first.`,
+        } as PurchaseResult,
+      );
+    }
+
     // Fetch user config
     const { data: config } = await supabase
       .from("configs")
@@ -353,7 +367,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Auto-approve: top up the persistent card
-      const topUpResult = await wallet.topUp({
+      const topUpResult = await stripeMock.topUp({
         user_id: userId,
         amount,
         transaction_id: "", // will update after inserting transaction
@@ -388,11 +402,23 @@ export async function POST(request: NextRequest) {
         expires_at: new Date(topUpResult.expires_at * 1000).toISOString(),
       });
 
-      // Update wallet balance
+      // Deduct from wallet balance
+      const newBalance = Number(walletRow.balance) - amount;
       await supabase
         .from("wallets")
-        .update({ balance: amount })
+        .update({ balance: newBalance })
         .eq("id", walletRow.id);
+
+      // Record ledger entry
+      await supabase.from("wallet_ledger").insert({
+        user_id: userId,
+        wallet_id: walletRow.id,
+        type: "purchase_debit",
+        amount,
+        balance_after: newBalance,
+        reference_id: txn!.id,
+        description: `Purchase: ${item} from ${merchant}`,
+      });
 
       // Track merchant as known
       if (!isKnownMerchant) {

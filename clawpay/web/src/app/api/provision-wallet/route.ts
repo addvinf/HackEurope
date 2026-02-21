@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@supabase/supabase-js";
-import { wallet } from "@/lib/stripe";
+import { stripeMock } from "@/lib/stripe-mock";
 
 function getAdminClient() {
   return createServerClient(
@@ -66,15 +66,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Provision a new persistent card via wallet (real Stripe or mock)
-    const card = await wallet.provisionCard({ user_id: userId });
-
-    // Extract Stripe IDs if present (real Stripe mode attaches them)
-    const stripeIds = card as typeof card & {
-      stripe_account_id?: string;
-      stripe_financial_account_id?: string;
-      stripe_cardholder_id?: string;
-    };
+    // Provision a new persistent card via mock wallet
+    const card = await stripeMock.provisionCard({ user_id: userId });
 
     // Store wallet in database
     const { data: walletRow, error } = await supabase
@@ -87,9 +80,6 @@ export async function POST(request: NextRequest) {
         balance: 0,
         currency: card.currency,
         status: "active",
-        stripe_account_id: stripeIds.stripe_account_id ?? null,
-        stripe_financial_account_id: stripeIds.stripe_financial_account_id ?? null,
-        stripe_cardholder_id: stripeIds.stripe_cardholder_id ?? null,
       })
       .select()
       .single();

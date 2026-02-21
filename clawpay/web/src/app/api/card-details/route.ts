@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@supabase/supabase-js";
-import { wallet } from "@/lib/stripe";
+import { stripeMock } from "@/lib/stripe-mock";
 
 function getAdminClient() {
   return createServerClient(
@@ -51,14 +51,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Check for active top-up — card details only available while funded
-    if (!(await wallet.hasActiveTopUp(userId))) {
+    if (!(await stripeMock.hasActiveTopUp(userId))) {
       return NextResponse.json(
         { error: "No active top-up session. Card is at $0." },
         { status: 403 },
       );
     }
 
-    const card = await wallet.getCard(userId);
+    const card = await stripeMock.getCard(userId);
     if (!card) {
       return NextResponse.json(
         { error: "No wallet provisioned" },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@supabase/supabase-js";
-import { wallet } from "@/lib/stripe";
+import { stripeMock } from "@/lib/stripe-mock";
 
 function getAdminClient() {
   return createServerClient(
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Drain the card
-    const drainResult = await wallet.drain({
+    const drainResult = await stripeMock.drain({
       user_id: userId,
       reason: success ? "checkout_success" : "checkout_failed",
     });
@@ -110,20 +110,43 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", session.id);
 
-    // Update wallet balance
-    await supabase
-      .from("wallets")
-      .update({ balance: 0 })
-      .eq("user_id", userId);
-
-    // If checkout failed, mark the transaction as cancelled
+    // If checkout failed, refund the amount back to wallet and mark transaction cancelled
     if (!success && session.transaction_id) {
+      // Get current wallet balance
+      const { data: walletRow } = await supabase
+        .from("wallets")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+
+      if (walletRow) {
+        const refundAmount = Number(session.amount);
+        const newBalance = Number(walletRow.balance) + refundAmount;
+
+        await supabase
+          .from("wallets")
+          .update({ balance: newBalance })
+          .eq("id", walletRow.id);
+
+        // Record refund in ledger
+        await supabase.from("wallet_ledger").insert({
+          user_id: userId,
+          wallet_id: walletRow.id,
+          type: "refund",
+          amount: refundAmount,
+          balance_after: newBalance,
+          reference_id: session.transaction_id,
+          description: "Refund — checkout failed",
+        });
+      }
+
       await supabase
         .from("transactions")
         .update({ status: "cancelled" })
         .eq("id", session.transaction_id)
         .eq("user_id", userId);
     }
+    // On success: no wallet balance change (already deducted during purchase)
 
     return NextResponse.json({
       status: "drained",

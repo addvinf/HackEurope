@@ -82,9 +82,6 @@ export interface Wallet {
   balance: number;
   currency: string;
   status: string;
-  stripe_account_id: string | null;
-  stripe_financial_account_id: string | null;
-  stripe_cardholder_id: string | null;
   created_at: string;
 }
 
@@ -111,6 +108,18 @@ export interface PurchaseRequest {
   category?: string;
   /** Whether the merchant is international (used by block_international rule) */
   international?: boolean;
+}
+
+export interface WalletLedgerEntry {
+  id: string;
+  user_id: string;
+  wallet_id: string;
+  type: "deposit" | "purchase_debit" | "refund";
+  amount: number;
+  balance_after: number;
+  reference_id: string | null;
+  description: string | null;
+  created_at: string;
 }
 
 export type PurchaseResult =

@@ -764,8 +764,8 @@ export default function SetupPage() {
               {savingConfig
                 ? "Saving your preferences..."
                 : walletProvisioned
-                  ? "Your virtual card is ready. Head to the Pair page to connect your OpenClaw agent."
-                  : "Head to the Pair page to connect your OpenClaw agent."}
+                  ? "Your virtual card is ready. Go to your dashboard to add funds and start spending."
+                  : "Go to your dashboard to get started."}
             </p>
             <div
               style={{
@@ -774,10 +774,10 @@ export default function SetupPage() {
               }}
             >
               <a
-                href="/dashboard/pair"
+                href="/dashboard"
                 className="inline-block bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium px-8 py-3.5 rounded-full transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                Generate pairing code
+                Go to Dashboard
               </a>
             </div>
           </div>

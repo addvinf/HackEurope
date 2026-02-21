@@ -1,12 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const navItems = [
+const allNavItems = [
   { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/setup", label: "Cards" },
+  { href: "/dashboard/setup", label: "Setup", setupOnly: true },
   { href: "/dashboard/rules", label: "Rules" },
   { href: "/dashboard/approvals", label: "Approvals" },
   { href: "/dashboard/pair", label: "Pair" },
@@ -20,10 +21,49 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [setupDone, setSetupDone] = useState<boolean | null>(null); // null = loading
+
+  useEffect(() => {
+    async function checkSetup() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("configs")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .single();
+
+      const done = !!data;
+      setSetupDone(done);
+
+      // New user without config → redirect to setup (unless already there)
+      if (!done && !pathname.startsWith("/dashboard/setup")) {
+        router.replace("/dashboard/setup");
+      }
+    }
+    checkSetup();
+  }, [pathname]);
+
+  // Hide "Setup" nav item once the user has completed setup
+  const navItems = setupDone
+    ? allNavItems.filter((item) => !item.setupOnly)
+    : allNavItems;
 
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.push("/login");
+  }
+
+  // Show nothing while checking setup status to avoid flash
+  if (setupDone === null) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center text-[#86868b]">
+        Loading...
+      </div>
+    );
   }
 
   return (

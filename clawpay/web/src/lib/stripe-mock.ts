@@ -258,6 +258,11 @@ export const stripeMock = {
     return !!fromDB && fromDB.balance > 0;
   },
 
+  async deposit(params: { user_id: string; amount: number }): Promise<{ checkout_session_id: string; amount: number }> {
+    const sessionId = `cs_mock_${crypto.randomBytes(12).toString("hex")}`;
+    return { checkout_session_id: sessionId, amount: params.amount };
+  },
+
   async charge(params: {
     amount: number;
     currency: string;
