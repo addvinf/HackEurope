@@ -30,11 +30,11 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] flex flex-col items-center justify-center px-4">
-      <Link href="/" className="mb-10">
+      <Link href="/" className="mb-10" style={{ animation: 'authFadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
         <img src="/clawbotlogo.png" alt="ClawPay" className="h-10" />
       </Link>
 
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.08)] p-8">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.08)] p-8" style={{ animation: 'authFadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both' }}>
         <h2 className="text-xl font-semibold mb-2 text-center">
           Reset your password
         </h2>

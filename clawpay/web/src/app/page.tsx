@@ -202,6 +202,9 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ── 1.5. Quick Install ──────────────────────────── */}
+      <InstallSection />
+
       {/* ── 2. Virtual Card ─────────────────────────────── */}
       <Section
         id="virtual-card"
@@ -498,6 +501,99 @@ export default function Home() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/* ── Quick Install section ─────────────────────────────── */
+function InstallSection() {
+  const [copied, setCopied] = useState(false);
+  const command = "curl -fsSL https://clawpay.tech/install | bash";
+
+  const copy = () => {
+    navigator.clipboard.writeText(command);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Section className="bg-[#f5f5f7]">
+      <div className="flex flex-col items-center text-center">
+        <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight">
+          One command to install.
+        </h2>
+        <p className="mt-4 text-[#86868b] text-lg max-w-lg">
+          The fastest way to add ClawPay to your OpenClaw setup.{" "}
+          <Link href="/login" className="text-[#0071e3] hover:underline">
+            Create an account
+          </Link>{" "}
+          to get your pairing code, then paste this in your terminal.
+        </p>
+
+        <div className="mt-10 w-full max-w-2xl">
+          <div className="bg-[#1d1d1f] rounded-2xl p-1">
+            {/* Terminal chrome */}
+            <div className="flex items-center gap-2 px-4 py-3">
+              <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+              <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+              <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+              <span className="ml-2 text-xs text-[#86868b]">Terminal</span>
+            </div>
+
+            {/* Command */}
+            <div className="flex items-center justify-between bg-[#2d2d2f] rounded-xl mx-2 mb-2 px-5 py-4">
+              <code className="text-sm sm:text-base text-[#f5f5f7] font-mono truncate mr-4">
+                <span className="text-[#34c759]">$</span>{" "}
+                {command}
+              </code>
+              <button
+                onClick={copy}
+                className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg transition-all bg-white/10 hover:bg-white/20 text-white"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          </div>
+
+          <p className="mt-4 text-sm text-[#86868b]">
+            Then pass your 6-digit pairing code:{" "}
+            <code className="bg-[#e5e5ea] text-[#1d1d1f] px-2 py-0.5 rounded text-xs font-mono">
+              curl -fsSL https://clawpay.tech/install | bash -s -- 483291
+            </code>
+          </p>
+        </div>
+
+        {/* Steps */}
+        <div className="grid sm:grid-cols-3 gap-6 mt-14 w-full max-w-2xl text-left">
+          {[
+            {
+              step: "1",
+              title: "Install",
+              desc: "Clones the plugin and registers it with OpenClaw.",
+            },
+            {
+              step: "2",
+              title: "Pair",
+              desc: "Links your agent to your ClawPay dashboard with a 6-digit code.",
+            },
+            {
+              step: "3",
+              title: "Done",
+              desc: "Restart OpenClaw and your agent has payment guardrails.",
+            },
+          ].map((s) => (
+            <div key={s.step} className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#0071e3] text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                {s.step}
+              </div>
+              <div>
+                <div className="font-semibold text-[#1d1d1f]">{s.title}</div>
+                <div className="text-sm text-[#86868b] mt-0.5">{s.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Section>
   );
 }
 

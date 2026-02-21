@@ -174,6 +174,13 @@ select {
   animation: blink 1s step-end infinite;
 }
 
+/* ── Auth page entrance animation ────────────────────────── */
+
+@keyframes authFadeInUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
 /* ── Landing page animations ─────────────────────────────── */
 
 @keyframes heroFadeInUp {
