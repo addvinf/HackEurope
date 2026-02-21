@@ -23,8 +23,11 @@ async function getUserFromToken(token: string) {
 }
 
 interface RulesConfig {
+  always_ask: boolean;
   per_purchase_limit: number;
   daily_limit: number;
+  num_purchase_limit: number;
+  num_purchases: number;
   monthly_limit: number;
   blocked_categories: string[];
   block_new_merchants: boolean;
@@ -43,10 +46,12 @@ interface RulesConfig {
  *   4. Amount > per_purchase_limit
  *   5. Today's spend + amount > daily_limit
  *   6. Month spend + amount > monthly_limit
+ *   7. Exceeded max purchases per day
  *
  * Soft (requires approval):
- *   7. New merchant + block_new_merchants
- *   8. Within 20% of daily limit
+ *   1. Always approve (if always_ask is true)
+ *   2. New merchant + block_new_merchants
+ *   3. Within 20% of daily limit
  *
  * Otherwise: auto-approve
  */
@@ -121,7 +126,26 @@ function evaluateRules(
     };
   }
 
-  // 7. New merchant + block_new_merchants → requires approval
+
+  // 7. Exceeded max purchases per week → hard reject
+  if (config.num_purchases >= config.num_purchase_limit) {
+    return {
+      action: "reject",
+      reason: `Exceeded maximum purchases per week (${config.num_purchase_limit})`,
+      riskFlags: ["velocity_limit"],
+    };
+  }
+
+  // 1. Always approve (if always_ask is true)
+  if (config.always_ask) {
+    return {
+      action: "needs_approval",
+      reason: "Always ask for approval",
+      riskFlags: ["always_ask"],
+    };
+  }
+
+  // 2. New merchant + block_new_merchants → requires approval
   if (config.block_new_merchants && !isKnownMerchant) {
     riskFlags.push("new_merchant");
     return {
@@ -131,7 +155,7 @@ function evaluateRules(
     };
   }
 
-  // 8. Within 20% of daily limit → requires approval
+  // 3. Within 20% of daily limit → requires approval
   if (todaySpent + purchase.amount > dailyLimit * 0.8) {
     riskFlags.push("near_daily_limit");
     return {
@@ -141,7 +165,7 @@ function evaluateRules(
     };
   }
 
-  // 9. All clear → auto-approve
+  // All clear → auto-approve
   return { action: "auto_approve", riskFlags };
 }
 
@@ -220,6 +244,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     const rules: RulesConfig = config || {
+      always_ask: true,
       per_purchase_limit: 50,
       daily_limit: 150,
       monthly_limit: 500,
