@@ -67,7 +67,13 @@ export default function DashboardPage() {
       if (txRes.data) setTransactions(txRes.data);
       if (cfgRes.data) setConfig(cfgRes.data);
       if (walletRes.data) setWallet(walletRes.data);
-      if (topupRes.data) setActiveTopUp(topupRes.data);
+      if (topupRes.data) {
+        // Only treat as active if it hasn't expired yet
+        const expiresAt = new Date(topupRes.data.expires_at).getTime();
+        if (expiresAt > Date.now()) {
+          setActiveTopUp(topupRes.data);
+        }
+      }
       if (ledgerRes.data) setLedger(ledgerRes.data);
       setLoading(false);
     }
