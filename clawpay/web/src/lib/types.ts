@@ -14,9 +14,11 @@ export interface Card {
 export interface Config {
   id: string;
   user_id: string;
+  always_ask: boolean;
   per_purchase_limit: number;
   daily_limit: number;
   monthly_limit: number;
+  num_purchase_limit: number;
   blocked_categories: string[];
   allowed_categories: string[];
   approval_channel: string;
@@ -79,9 +81,6 @@ export interface Wallet {
   balance: number;
   currency: string;
   status: string;
-  stripe_account_id: string | null;
-  stripe_financial_account_id: string | null;
-  stripe_cardholder_id: string | null;
   created_at: string;
 }
 
