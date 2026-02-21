@@ -131,9 +131,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If checkout failed, refund the amount back to wallet and mark transaction cancelled
-    if (!success && session.transaction_id) {
-      // Get current wallet balance
+    // Refund leftover balance back to the wallet
+    const refundAmount = success
+      ? drainResult.drained_amount                 // leftover on card after checkout
+      : Number(session.amount);                     // full amount if checkout failed
+
+    if (refundAmount > 0 && session.transaction_id) {
       const { data: walletRow } = await supabase
         .from("wallets")
         .select("*")
@@ -141,7 +144,6 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (walletRow) {
-        const refundAmount = Number(session.amount);
         const newBalance = Number(walletRow.balance) + refundAmount;
 
         await supabase
@@ -149,7 +151,6 @@ export async function POST(request: NextRequest) {
           .update({ balance: newBalance })
           .eq("id", walletRow.id);
 
-        // Record refund in ledger
         await supabase.from("wallet_ledger").insert({
           user_id: userId,
           wallet_id: walletRow.id,
@@ -157,13 +158,12 @@ export async function POST(request: NextRequest) {
           amount: refundAmount,
           balance_after: newBalance,
           reference_id: session.transaction_id,
-          description: "Refund — checkout failed",
+          description: success
+            ? `Refund — unused card balance ($${refundAmount.toFixed(2)} of $${Number(session.amount).toFixed(2)} top-up)`
+            : "Refund — checkout failed",
         });
       }
-
-      // Transaction status already updated to cancelled above.
     }
-    // On success: no wallet balance change (already deducted during purchase)
 
     return NextResponse.json({
       status: "drained",

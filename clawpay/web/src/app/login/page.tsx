@@ -80,6 +80,17 @@ export default function LoginPage() {
             className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] placeholder-[#aeaeb2] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
           />
 
+          {!isSignUp && (
+            <div className="text-right -mt-2">
+              <Link
+                href="/forgot-password"
+                className="text-[#0071e3] hover:text-[#0077ed] text-sm font-medium"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          )}
+
           {error && (
             <p className="text-[#ff3b30] text-sm">{error}</p>
           )}
