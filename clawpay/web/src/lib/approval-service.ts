@@ -1,4 +1,4 @@
-import { wallet } from "@/lib/stripe";
+import { stripeMock } from "@/lib/stripe-mock";
 import { getAdminClient } from "@/lib/supabase-admin";
 import type { ApproveResult } from "@/lib/types";
 
@@ -104,7 +104,7 @@ export async function resolveApproval(input: ResolveApprovalInput): Promise<Reso
     };
   }
 
-  const topUpResult = await wallet.topUp({
+  const topUpResult = await stripeMock.topUp({
     user_id: approval.user_id,
     amount: approval.amount,
     transaction_id: "",

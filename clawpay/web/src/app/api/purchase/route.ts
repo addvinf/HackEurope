@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-<<<<<<< HEAD
 import { formatApprovalMessage, sendTelegramMessage } from "@/lib/telegram";
 import { getAdminClient, getUserFromApiToken } from "@/lib/supabase-admin";
-import { wallet } from "@/lib/stripe";
-=======
 import { stripeMock } from "@/lib/stripe-mock";
->>>>>>> 5430eb8 (ux changes)
 import type { PurchaseRequest, PurchaseResult } from "@/lib/types";
 
 interface RulesConfig {
