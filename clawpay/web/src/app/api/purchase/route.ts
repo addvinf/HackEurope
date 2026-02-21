@@ -7,16 +7,22 @@ import type { PurchaseRequest, PurchaseResult } from "@/lib/types";
 
 interface RulesConfig {
   always_ask: boolean;
-  per_purchase_limit: number;
-  daily_limit: number;
-  num_purchase_limit: number;
+  per_purchase_limit: number | null;
+  daily_limit: number | null;
+  num_purchase_limit: number | null;
   num_purchases: number;
-  monthly_limit: number;
+  monthly_limit: number | null;
   blocked_categories: string[];
   block_new_merchants: boolean;
   block_international: boolean;
   night_pause: boolean;
   approval_timeout_seconds: number;
+}
+
+function parseLimitOrDefault(value: unknown, fallback: number): number | null {
+  if (value === null) return null;
+  const numeric = Number(value ?? fallback);
+  return Number.isFinite(numeric) ? numeric : fallback;
 }
 
 /**
@@ -47,13 +53,21 @@ function evaluateRules(
 ): { action: "auto_approve" | "needs_approval" | "reject"; reason?: string; riskFlags: string[] } {
   const riskFlags: string[] = [];
   const effectivePerPurchaseLimit =
-    Number(config.per_purchase_limit) <= 0 ? Number.POSITIVE_INFINITY : Number(config.per_purchase_limit);
+    config.per_purchase_limit === null
+      ? Number.POSITIVE_INFINITY
+      : Number(config.per_purchase_limit);
   const dailyLimit =
-    Number(config.daily_limit) <= 0 ? Number.POSITIVE_INFINITY : Number(config.daily_limit);
+    config.daily_limit === null
+      ? Number.POSITIVE_INFINITY
+      : Number(config.daily_limit);
   const monthlyLimit =
-    Number(config.monthly_limit) <= 0 ? Number.POSITIVE_INFINITY : Number(config.monthly_limit);
+    config.monthly_limit === null
+      ? Number.POSITIVE_INFINITY
+      : Number(config.monthly_limit);
   const weeklyPurchaseLimit =
-    Number(config.num_purchase_limit) <= 0 ? Number.POSITIVE_INFINITY : Number(config.num_purchase_limit);
+    config.num_purchase_limit === null
+      ? Number.POSITIVE_INFINITY
+      : Number(config.num_purchase_limit);
 
   // 1. Blocked category → hard reject
   if (
@@ -274,20 +288,33 @@ export async function POST(request: NextRequest) {
     );
     const weeklyPurchaseCount = (todayTxnsRes.data || []).length;
 
+    const configRow = config as {
+      always_ask?: unknown;
+      per_purchase_limit?: unknown;
+      daily_limit?: unknown;
+      num_purchase_limit?: unknown;
+      monthly_limit?: unknown;
+      blocked_categories?: unknown;
+      block_new_merchants?: unknown;
+      block_international?: unknown;
+      night_pause?: unknown;
+      approval_timeout_seconds?: unknown;
+    } | null;
+
     const rules: RulesConfig = {
-      always_ask: Boolean((config as { always_ask?: unknown } | null)?.always_ask ?? true),
-      per_purchase_limit: Number((config as { per_purchase_limit?: unknown } | null)?.per_purchase_limit ?? 50),
-      daily_limit: Number((config as { daily_limit?: unknown } | null)?.daily_limit ?? 150),
-      num_purchase_limit: Number((config as { num_purchase_limit?: unknown } | null)?.num_purchase_limit ?? 25),
+      always_ask: Boolean(configRow?.always_ask ?? true),
+      per_purchase_limit: parseLimitOrDefault(configRow?.per_purchase_limit, 50),
+      daily_limit: parseLimitOrDefault(configRow?.daily_limit, 150),
+      num_purchase_limit: parseLimitOrDefault(configRow?.num_purchase_limit, 25),
       num_purchases: weeklyPurchaseCount,
-      monthly_limit: Number((config as { monthly_limit?: unknown } | null)?.monthly_limit ?? 500),
-      blocked_categories: Array.isArray((config as { blocked_categories?: unknown } | null)?.blocked_categories)
-        ? ((config as { blocked_categories: string[] }).blocked_categories)
+      monthly_limit: parseLimitOrDefault(configRow?.monthly_limit, 500),
+      blocked_categories: Array.isArray(configRow?.blocked_categories)
+        ? (configRow.blocked_categories as string[])
         : [],
-      block_new_merchants: Boolean((config as { block_new_merchants?: unknown } | null)?.block_new_merchants ?? true),
-      block_international: Boolean((config as { block_international?: unknown } | null)?.block_international ?? false),
-      night_pause: Boolean((config as { night_pause?: unknown } | null)?.night_pause ?? false),
-      approval_timeout_seconds: Number((config as { approval_timeout_seconds?: unknown } | null)?.approval_timeout_seconds ?? 300),
+      block_new_merchants: Boolean(configRow?.block_new_merchants ?? true),
+      block_international: Boolean(configRow?.block_international ?? false),
+      night_pause: Boolean(configRow?.night_pause ?? false),
+      approval_timeout_seconds: Number(configRow?.approval_timeout_seconds ?? 300),
     };
 
     // Check if merchant is known
