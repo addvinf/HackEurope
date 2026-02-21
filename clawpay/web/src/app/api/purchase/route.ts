@@ -351,19 +351,24 @@ export async function POST(request: NextRequest) {
       ).trim();
 
       if (approvalChannel === "telegram" && telegramChatId) {
-        const message = formatApprovalMessage({
-          item,
-          amount,
-          currency,
-          merchant,
-          approvalToken,
-          expiresAt,
-        });
-        const sendResult = await sendTelegramMessage(telegramChatId, message);
-        if (!sendResult.ok) {
-          console.error(
-            `[clawpay] approval telegram send failed: ${sendResult.description || "unknown"}`,
-          );
+        try {
+          const message = formatApprovalMessage({
+            item,
+            amount,
+            currency,
+            merchant,
+            approvalToken,
+            expiresAt,
+          });
+          const sendResult = await sendTelegramMessage(telegramChatId, message);
+          if (!sendResult.ok) {
+            console.error(
+              `[clawpay] approval telegram send failed: ${sendResult.description || "unknown"}`,
+            );
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "unknown";
+          console.error(`[clawpay] approval telegram send threw: ${message}`);
         }
       }
     } else {
