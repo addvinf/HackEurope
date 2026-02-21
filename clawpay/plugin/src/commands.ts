@@ -183,8 +183,8 @@ export function createTestBuyCommand(client: ClawPayClient) {
             text: [
               "Test purchase pending approval.",
               `Approval ID: ${result.approval_id}`,
-              `Approval token: ${result.approval_token}`,
               `Expires at: ${result.expires_at}`,
+              `Reply with **yes** or **no** to resolve.`,
             ].join("\n"),
           };
         }

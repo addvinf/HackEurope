@@ -2,24 +2,19 @@ import type { ClawPayClient } from "./supabase-client.js";
 
 /**
  * Parse an incoming message for approval responses.
- * Matches patterns like:
- *   "yes Token: abc123def456abcd"
- *   "approve Token: abc123def456abcd"
- *   "no Token: abc123def456abcd"
- *   "reject Token: abc123def456abcd"
+ * Matches patterns like: "yes", "approve", "no", "reject", "cancel"
  */
 export function parseApprovalReply(content: string): {
   approved: boolean;
-  token: string;
 } | null {
   const match = content.match(
-    /\b(yes|approve|no|reject|cancel)\b.*Token:\s*([a-f0-9]{16})/i,
+    /^\s*(yes|approve|no|reject|cancel)\s*$/i,
   );
   if (!match) return null;
 
-  const [, response, token] = match;
+  const [, response] = match;
   const approved = ["yes", "approve"].includes(response.toLowerCase());
-  return { approved, token };
+  return { approved };
 }
 
 /**
@@ -30,7 +25,6 @@ export function formatApprovalMessage(params: {
   amount: number;
   currency: string;
   merchant: string;
-  approvalToken: string;
   expiresAt: string;
 }): string {
   const expiresDate = new Date(params.expiresAt);
@@ -46,9 +40,7 @@ export function formatApprovalMessage(params: {
     `Amount: $${params.amount} ${params.currency}`,
     `Merchant: ${params.merchant}`,
     ``,
-    `Reply with one of:`,
-    `  **yes** Token: ${params.approvalToken}`,
-    `  **no** Token: ${params.approvalToken}`,
+    `Reply with **yes** or **no**`,
     ``,
     `Expires in ${minutes} minutes.`,
   ].join("\n");
@@ -59,12 +51,10 @@ export function formatApprovalMessage(params: {
  */
 export async function resolveApproval(
   client: ClawPayClient,
-  token: string,
   approved: boolean,
 ): Promise<string> {
   try {
     const result = await client.resolveApproval({
-      approval_token: token,
       approved,
     });
 

@@ -208,43 +208,61 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right card — Virtual Card */}
+          {/* Right card — Virtual Card (credit card style) */}
           <div
-            className={`rounded-2xl p-6 transition-all ${
+            className={`relative overflow-hidden aspect-[16/10] rounded-2xl p-6 bg-gradient-to-br from-[#1a1f36] to-[#0a2540] transition-all flex flex-col justify-between ${
               activeTopUp
-                ? "bg-[#fff8e1] shadow-[0_2px_12px_rgba(255,159,10,0.12)]"
-                : "bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]"
+                ? "shadow-[0_0_20px_rgba(255,159,10,0.25)]"
+                : "shadow-[0_4px_24px_rgba(10,37,64,0.3)]"
             }`}
           >
-            <div className="flex flex-col justify-between h-full">
-              <div>
-                <p className="text-sm text-[#86868b]">Virtual Card</p>
-                <p className="text-4xl font-semibold mt-1 tracking-tight">
-                  ${activeTopUp ? Number(activeTopUp.amount).toFixed(2) : "0.00"}
-                </p>
-                <div className="flex items-center gap-1.5 font-mono text-sm mt-2 text-[#86868b]">
-                  {wallet.card_brand === "visa" ? (
-                    <img src="/visa-logo.png" alt="Visa" className="h-4 opacity-50" />
-                  ) : (
-                    <span>{wallet.card_brand.toUpperCase()}</span>
-                  )}
-                  <span>&bull;&bull;&bull;&bull; {wallet.card_last4}</span>
-                </div>
-              </div>
-              <div className="mt-4">
-                {activeTopUp ? (
-                  <div>
-                    <p className="text-[#ff9f0a] font-semibold text-sm">
-                      PURCHASE IN PROGRESS
-                    </p>
-                    <p className="text-xs text-[#86868b] mt-1">
-                      Drains {new Date(activeTopUp.expires_at).toLocaleTimeString()}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-[#34c759] font-semibold text-sm">IDLE</p>
-                )}
-              </div>
+            {/* Watermark logo */}
+            <img
+              src="/clawbotlogo.png"
+              alt=""
+              className="absolute right-[-10%] top-1/2 -translate-y-1/2 h-[80%] brightness-0 invert opacity-[0.04] pointer-events-none"
+            />
+            {/* Top row — brand + logo */}
+            <div className="flex items-center justify-between relative z-[1]">
+              <img src="/clawbotlogo.png" alt="ClawPay" className="h-7 brightness-0 invert opacity-80" />
+              {wallet.card_brand === "visa" ? (
+                <img src="/visa-logo.png" alt="Visa" className="h-5 brightness-0 invert opacity-70" />
+              ) : (
+                <span className="text-xs font-bold text-white/70 tracking-wide">
+                  {wallet.card_brand.toUpperCase()}
+                </span>
+              )}
+            </div>
+
+            {/* Chip icon */}
+            <div className="w-10 h-7 rounded-md bg-gradient-to-br from-[#d4a853] to-[#c49332]" />
+
+            {/* Balance */}
+            <p className="text-3xl font-semibold tracking-tight text-white">
+              ${activeTopUp ? Number(activeTopUp.amount).toFixed(2) : "0.00"}
+            </p>
+
+            {/* Card number */}
+            <p className="font-mono text-sm text-white/70 tracking-wider">
+              &bull;&bull;&bull;&bull; &nbsp;&bull;&bull;&bull;&bull; &nbsp;&bull;&bull;&bull;&bull; &nbsp;{wallet.card_last4}
+            </p>
+
+            {/* Bottom row — status + drain time */}
+            <div className="flex items-end justify-between">
+              {activeTopUp ? (
+                <span className="text-[#ff9f0a] font-semibold text-xs tracking-wide">
+                  PURCHASE IN PROGRESS
+                </span>
+              ) : (
+                <span className="text-[#34c759] font-semibold text-xs tracking-wide">
+                  IDLE
+                </span>
+              )}
+              {activeTopUp && (
+                <span className="text-[11px] text-white/50">
+                  Drains {new Date(activeTopUp.expires_at).toLocaleTimeString()}
+                </span>
+              )}
             </div>
           </div>
         </div>

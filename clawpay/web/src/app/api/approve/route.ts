@@ -23,19 +23,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { approval_token, approved } = body;
+    const { approved } = body;
 
-    if (!approval_token || typeof approved !== "boolean") {
+    if (typeof approved !== "boolean") {
       return NextResponse.json(
-        { error: "Missing approval_token or approved (boolean)" },
+        { error: "Missing approved (boolean)" },
         { status: 400 },
       );
     }
 
     const outcome = await resolveApproval({
-      approvalToken: approval_token,
       approved,
-      expectedUserId: userId,
+      userId,
     });
 
     if (!outcome.ok) {

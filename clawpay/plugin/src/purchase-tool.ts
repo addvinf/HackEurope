@@ -108,64 +108,35 @@ export function createPurchaseTool(client: ClawPayClient) {
         });
 
         if (result.status === "approved") {
-          // Purchase authorized — fetch persistent card details and prepare CDP injection.
+          // Purchase authorized — card details are included inline in the response.
           // The card details NEVER appear in this text response to the LLM.
-          let cdpSummary = "Virtual card topped up.";
+          const cdpPayload = buildCdpInjectionPayload(result.card);
+          const cdpSummary = cdpPayload.summary;
 
-          try {
-            const cardDetails = await client.getCardDetails();
-            const cdpPayload = buildCdpInjectionPayload(cardDetails);
-            cdpSummary = cdpPayload.summary;
-
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: [
-                    `Purchase authorized (not yet completed)!`,
-                    `Item: ${item}`,
-                    `Amount: $${amount} ${currency}`,
-                    `Merchant: ${merchant}`,
-                    `Transaction: ${result.transaction_id}`,
-                    `Top-up ID: ${result.topup_id}`,
-                    ``,
-                    `${cdpSummary}`,
-                    `Use the browser tool to submit the checkout form now.`,
-                    ``,
-                    `IMPORTANT: After checkout, call clawpay_complete with topup_id="${result.topup_id}" and success=true/false.`,
-                  ].join("\n"),
-                },
-              ],
-              details: {
-                ...result,
-                cdp_injection: cdpPayload,
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: [
+                  `Purchase authorized (not yet completed)!`,
+                  `Item: ${item}`,
+                  `Amount: $${amount} ${currency}`,
+                  `Merchant: ${merchant}`,
+                  `Transaction: ${result.transaction_id}`,
+                  `Top-up ID: ${result.topup_id}`,
+                  ``,
+                  `${cdpSummary}`,
+                  `Use the browser tool to submit the checkout form now.`,
+                  ``,
+                  `IMPORTANT: After checkout, call clawpay_complete with topup_id="${result.topup_id}" and success=true/false.`,
+                ].join("\n"),
               },
-            };
-          } catch {
-            // Card details fetch failed — still approved, but can't inject
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: [
-                    `Purchase authorized (not yet completed)!`,
-                    `Item: ${item}`,
-                    `Amount: $${amount} ${currency}`,
-                    `Merchant: ${merchant}`,
-                    `Transaction: ${result.transaction_id}`,
-                    `Top-up ID: ${result.topup_id}`,
-                    `Card: ending ${result.card_last4}`,
-                    ``,
-                    `${cdpSummary}`,
-                    `Note: Could not prepare automatic form fill. The user may need to enter card details manually.`,
-                    ``,
-                    `IMPORTANT: After checkout, call clawpay_complete with topup_id="${result.topup_id}" and success=true/false.`,
-                  ].join("\n"),
-                },
-              ],
-              details: result,
-            };
-          }
+            ],
+            details: {
+              ...result,
+              cdp_injection: cdpPayload,
+            },
+          };
         }
 
         if (result.status === "pending_approval") {

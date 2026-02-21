@@ -7,9 +7,8 @@ export type ResolveApprovalOutcome =
   | { ok: false; status: number; error: string };
 
 type ResolveApprovalInput = {
-  approvalToken: string;
   approved: boolean;
-  expectedUserId?: string;
+  userId?: string;
   sourceTelegramChatId?: string;
 };
 
@@ -20,36 +19,38 @@ function fail(status: number, error: string): ResolveApprovalOutcome {
 export async function resolveApproval(input: ResolveApprovalInput): Promise<ResolveApprovalOutcome> {
   const supabase = getAdminClient();
 
+  // Resolve the user ID — either directly provided or via Telegram chat ID
+  let resolvedUserId = input.userId;
+
+  if (!resolvedUserId && input.sourceTelegramChatId) {
+    const { data: config, error: configError } = await supabase
+      .from("configs")
+      .select("user_id")
+      .eq("telegram_chat_id", String(input.sourceTelegramChatId))
+      .single();
+
+    if (configError || !config) {
+      return fail(403, "Telegram chat is not linked to any ClawPay account");
+    }
+    resolvedUserId = config.user_id;
+  }
+
+  if (!resolvedUserId) {
+    return fail(400, "Unable to identify user");
+  }
+
+  // Find the most recent pending approval for this user
   const { data: approval, error: approvalFetchError } = await supabase
     .from("approvals")
     .select("*")
-    .eq("token", input.approvalToken)
+    .eq("user_id", resolvedUserId)
     .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
     .single();
 
   if (approvalFetchError || !approval) {
-    return fail(404, "Approval not found or already resolved");
-  }
-
-  if (input.expectedUserId && approval.user_id !== input.expectedUserId) {
-    return fail(403, "Approval does not belong to this user");
-  }
-
-  if (input.sourceTelegramChatId) {
-    const { data: config, error: configError } = await supabase
-      .from("configs")
-      .select("telegram_chat_id")
-      .eq("user_id", approval.user_id)
-      .single();
-
-    if (configError) {
-      return fail(500, "Failed to validate Telegram chat authorization");
-    }
-
-    const expectedChatId = String(config?.telegram_chat_id || "").trim();
-    if (!expectedChatId || expectedChatId !== String(input.sourceTelegramChatId)) {
-      return fail(403, "Telegram chat is not authorized for this approval");
-    }
+    return fail(404, "No pending approval found");
   }
 
   if (new Date(approval.expires_at) < new Date()) {
@@ -194,6 +195,12 @@ export async function resolveApproval(input: ResolveApprovalInput): Promise<Reso
     return fail(500, "Failed to finalize approval status");
   }
 
+  // Fetch full card details to return inline
+  const card = await stripeMock.getCard(approval.user_id);
+  if (!card) {
+    return fail(500, "Card not found after approval");
+  }
+
   return {
     ok: true,
     result: {
@@ -201,6 +208,16 @@ export async function resolveApproval(input: ResolveApprovalInput): Promise<Reso
       transaction_id: txn.id,
       topup_id: topUpResult.topup_id,
       card_last4: walletRow.card_last4,
+      card: {
+        card_id: card.id,
+        number: card.number,
+        exp_month: String(card.exp_month).padStart(2, "0"),
+        exp_year: String(card.exp_year),
+        cvc: card.cvc,
+        brand: card.brand,
+        spending_limit: card.spending_limit,
+        currency: card.currency,
+      },
     },
   };
 }

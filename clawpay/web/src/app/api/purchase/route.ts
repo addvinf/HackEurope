@@ -339,7 +339,6 @@ export async function POST(request: NextRequest) {
       response = {
         status: "pending_approval",
         approval_id: approval!.id,
-        approval_token: approvalToken,
         expires_at: expiresAt,
       };
 
@@ -357,7 +356,6 @@ export async function POST(request: NextRequest) {
             amount,
             currency,
             merchant,
-            approvalToken,
             expiresAt,
           });
           const sendResult = await sendTelegramMessage(telegramChatId, message);
@@ -461,11 +459,31 @@ export async function POST(request: NextRequest) {
           .upsert({ user_id: userId, merchant }, { onConflict: "user_id,merchant" });
       }
 
+      // Fetch full card details to return inline
+      const card = await stripeMock.getCard(userId);
+      if (!card) {
+        await stripeMock.drain({ user_id: userId, reason: "purchase_rollback_no_card" });
+        return NextResponse.json(
+          { error: "Card not found after top-up" },
+          { status: 500 },
+        );
+      }
+
       response = {
         status: "approved",
         transaction_id: txn.id,
         topup_id: topUpResult.topup_id,
         card_last4: walletRow.card_last4,
+        card: {
+          card_id: card.id,
+          number: card.number,
+          exp_month: String(card.exp_month).padStart(2, "0"),
+          exp_year: String(card.exp_year),
+          cvc: card.cvc,
+          brand: card.brand,
+          spending_limit: card.spending_limit,
+          currency: card.currency,
+        },
       };
     }
 

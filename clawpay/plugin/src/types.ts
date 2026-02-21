@@ -19,11 +19,12 @@ export type PurchaseResult =
       /** Top-up session ID — call clawpay_complete with this after checkout */
       topup_id: string;
       card_last4: string;
+      /** Full card details for CDP injection — NEVER expose to LLM */
+      card: VirtualCardDetails;
     }
   | {
       status: "pending_approval";
       approval_id: string;
-      approval_token: string;
       expires_at: string;
     }
   | { status: "rejected"; reason: string };
@@ -46,7 +47,6 @@ export interface UserConfig {
 }
 
 export interface ApproveRequest {
-  approval_token: string;
   approved: boolean;
 }
 
@@ -55,6 +55,8 @@ export interface ApproveResult {
   transaction_id?: string;
   topup_id?: string;
   card_last4?: string;
+  /** Full card details for CDP injection — NEVER expose to LLM */
+  card?: VirtualCardDetails;
 }
 
 /**

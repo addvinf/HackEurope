@@ -5,7 +5,6 @@ type TelegramSendResult = {
 
 type TelegramApprovalReply = {
   approved: boolean;
-  token: string;
 };
 
 function getTelegramBotToken(): string {
@@ -30,13 +29,12 @@ export function verifyTelegramWebhookSecret(request: Request): boolean {
 }
 
 export function parseTelegramApprovalReply(text: string): TelegramApprovalReply | null {
-  const match = /^\s*(yes|no)\s+([a-f0-9]{16})\s*$/i.exec(text || "");
+  const match = /^\s*(yes|no)\s*$/i.exec(text || "");
   if (!match) {
     return null;
   }
   return {
     approved: match[1].toLowerCase() === "yes",
-    token: match[2].toLowerCase(),
   };
 }
 
@@ -45,7 +43,6 @@ export function formatApprovalMessage(params: {
   amount: number;
   currency: string;
   merchant: string;
-  approvalToken: string;
   expiresAt: string;
 }): string {
   return [
@@ -53,8 +50,8 @@ export function formatApprovalMessage(params: {
     `Item: ${params.item}`,
     `Amount: ${params.amount} ${params.currency}`,
     `Merchant: ${params.merchant}`,
-    `Reply YES ${params.approvalToken} to approve`,
-    `Reply NO ${params.approvalToken} to reject`,
+    `Reply YES to approve`,
+    `Reply NO to reject`,
     `Expires: ${params.expiresAt}`,
   ].join("\n");
 }

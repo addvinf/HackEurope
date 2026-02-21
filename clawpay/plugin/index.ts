@@ -106,7 +106,7 @@ export default function register(api: OpenClawPluginApi) {
     const parsed = parseApprovalReply(content);
     if (!parsed) return;
 
-    const resultText = await resolveApproval(client, parsed.token, parsed.approved);
+    const resultText = await resolveApproval(client, parsed.approved);
     api.logger.info(`ClawPay approval resolved: ${resultText}`);
   });
 }

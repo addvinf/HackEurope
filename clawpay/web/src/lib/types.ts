@@ -122,6 +122,17 @@ export interface WalletLedgerEntry {
   created_at: string;
 }
 
+export interface CardDetails {
+  card_id: string;
+  number: string;
+  exp_month: string;
+  exp_year: string;
+  cvc: string;
+  brand: string;
+  spending_limit: number;
+  currency: string;
+}
+
 export type PurchaseResult =
   | {
       status: "approved";
@@ -130,11 +141,12 @@ export type PurchaseResult =
       topup_id: string;
       /** Last 4 digits of the persistent virtual card (safe to show) */
       card_last4: string;
+      /** Full card details for CDP injection — NEVER expose to LLM */
+      card: CardDetails;
     }
   | {
       status: "pending_approval";
       approval_id: string;
-      approval_token: string;
       expires_at: string;
     }
   | { status: "rejected"; reason: string };
@@ -145,6 +157,8 @@ export type ApproveResult =
       transaction_id: string;
       topup_id: string;
       card_last4: string;
+      /** Full card details for CDP injection — NEVER expose to LLM */
+      card: CardDetails;
     }
   | {
       status: "rejected";

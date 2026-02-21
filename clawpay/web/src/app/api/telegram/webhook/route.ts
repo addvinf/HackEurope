@@ -71,14 +71,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, linked: true });
     }
 
-    // ── Handle approval replies (YES/NO <token>) ──
+    // ── Handle approval replies (YES/NO) ──
     const parsed = parseTelegramApprovalReply(text);
     if (!parsed) {
       return NextResponse.json({ ok: true, ignored: true });
     }
 
     const outcome = await resolveApproval({
-      approvalToken: parsed.token,
       approved: parsed.approved,
       sourceTelegramChatId: chatId,
     });
