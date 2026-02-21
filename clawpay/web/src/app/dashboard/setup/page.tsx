@@ -200,6 +200,9 @@ export default function SetupPage() {
     const code = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
+    // Open Telegram immediately (before any await) so the browser doesn't block the popup
+    window.open(`https://t.me/${TELEGRAM_BOT}?start=${code}`, "_blank");
+
     const { error: insertErr } = await supabase.from("telegram_link_codes").insert({
       user_id: user.id,
       code,
@@ -208,10 +211,7 @@ export default function SetupPage() {
 
     if (insertErr) {
       console.error("Failed to insert telegram link code:", insertErr);
-      return;
     }
-
-    window.open(`https://t.me/${TELEGRAM_BOT}?start=${code}`, "_blank");
 
     setTelegramLinking(true);
     pollTelegramLink(user.id);
