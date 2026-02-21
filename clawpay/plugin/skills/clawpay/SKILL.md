@@ -39,7 +39,7 @@ After checkout, the card is immediately drained back to $0.
 
 Three safety layers ensure the card never stays funded:
 1. Call `clawpay_complete` after every checkout.
-2. Server timeout auto-drains after 120 seconds.
+2. Server timeout auto-drains after 300 seconds.
 3. Stale cleanup expires old sessions on each API call.
 
 Card details are held in the plugin process only. CDP injection goes directly to

@@ -170,7 +170,7 @@ export function createTestBuyCommand(client: ClawPayClient) {
         if (result.status === "approved") {
           return {
             text: [
-              "Test purchase approved.",
+              "Test purchase authorized (checkout not yet completed).",
               `Transaction: ${result.transaction_id}`,
               `Top-up ID: ${result.topup_id}`,
               `Card: ending ${result.card_last4}`,

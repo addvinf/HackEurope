@@ -42,7 +42,7 @@ export interface Transaction {
   merchant_url: string | null;
   category: string | null;
   charge_id: string | null;
-  status: "completed" | "rejected" | "cancelled";
+  status: "authorized" | "completed" | "rejected" | "cancelled";
   rejection_reason: string | null;
   created_at: string;
 }

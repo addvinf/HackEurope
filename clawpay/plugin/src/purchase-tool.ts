@@ -108,7 +108,7 @@ export function createPurchaseTool(client: ClawPayClient) {
         });
 
         if (result.status === "approved") {
-          // Purchase approved — fetch persistent card details and prepare CDP injection.
+          // Purchase authorized — fetch persistent card details and prepare CDP injection.
           // The card details NEVER appear in this text response to the LLM.
           let cdpSummary = "Virtual card topped up.";
 
@@ -122,7 +122,7 @@ export function createPurchaseTool(client: ClawPayClient) {
                 {
                   type: "text" as const,
                   text: [
-                    `Purchase approved!`,
+                    `Purchase authorized (not yet completed)!`,
                     `Item: ${item}`,
                     `Amount: $${amount} ${currency}`,
                     `Merchant: ${merchant}`,
@@ -148,7 +148,7 @@ export function createPurchaseTool(client: ClawPayClient) {
                 {
                   type: "text" as const,
                   text: [
-                    `Purchase approved!`,
+                    `Purchase authorized (not yet completed)!`,
                     `Item: ${item}`,
                     `Amount: $${amount} ${currency}`,
                     `Merchant: ${merchant}`,

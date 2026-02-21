@@ -377,11 +377,11 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         amount,
         transaction_id: "", // will update after inserting transaction
-        timeout_seconds: 120,
+        timeout_seconds: 300,
       });
 
-      // Record transaction
-      const { data: txn } = await supabase
+      // Record authorized transaction; checkout completion is finalized via /api/drain.
+      const { data: txn, error: txnError } = await supabase
         .from("transactions")
         .insert({
           user_id: userId,
@@ -392,39 +392,67 @@ export async function POST(request: NextRequest) {
           merchant_url,
           category,
           charge_id: walletRow.card_id,
-          status: "completed",
+          status: "authorized",
         })
         .select()
         .single();
+      if (txnError || !txn) {
+        await stripeMock.drain({ user_id: userId, reason: "purchase_rollback_txn" });
+        return NextResponse.json(
+          { error: "Failed to create authorized transaction" },
+          { status: 500 },
+        );
+      }
 
       // Create topup session
-      await supabase.from("topup_sessions").insert({
+      const { error: topupError } = await supabase.from("topup_sessions").insert({
         user_id: userId,
         wallet_id: walletRow.id,
-        transaction_id: txn!.id,
+        transaction_id: txn.id,
         topup_id: topUpResult.topup_id,
         amount,
         status: "active",
         expires_at: new Date(topUpResult.expires_at * 1000).toISOString(),
       });
+      if (topupError) {
+        await stripeMock.drain({ user_id: userId, reason: "purchase_rollback_topup" });
+        return NextResponse.json(
+          { error: "Failed to create top-up session" },
+          { status: 500 },
+        );
+      }
 
       // Deduct from wallet balance
       const newBalance = Number(walletRow.balance) - amount;
-      await supabase
+      const { error: walletError } = await supabase
         .from("wallets")
         .update({ balance: newBalance })
         .eq("id", walletRow.id);
+      if (walletError) {
+        await stripeMock.drain({ user_id: userId, reason: "purchase_rollback_wallet" });
+        return NextResponse.json(
+          { error: "Failed to update wallet balance" },
+          { status: 500 },
+        );
+      }
 
       // Record ledger entry
-      await supabase.from("wallet_ledger").insert({
+      const { error: ledgerError } = await supabase.from("wallet_ledger").insert({
         user_id: userId,
         wallet_id: walletRow.id,
         type: "purchase_debit",
         amount,
         balance_after: newBalance,
-        reference_id: txn!.id,
-        description: `Purchase: ${item} from ${merchant}`,
+        reference_id: txn.id,
+        description: `Authorized purchase: ${item} from ${merchant}`,
       });
+      if (ledgerError) {
+        await stripeMock.drain({ user_id: userId, reason: "purchase_rollback_ledger" });
+        return NextResponse.json(
+          { error: "Failed to write wallet ledger entry" },
+          { status: 500 },
+        );
+      }
 
       // Track merchant as known
       if (!isKnownMerchant) {
@@ -435,7 +463,7 @@ export async function POST(request: NextRequest) {
 
       response = {
         status: "approved",
-        transaction_id: txn!.id,
+        transaction_id: txn.id,
         topup_id: topUpResult.topup_id,
         card_last4: walletRow.card_last4,
       };
