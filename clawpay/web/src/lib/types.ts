@@ -22,6 +22,7 @@ export interface Config {
   blocked_categories: string[];
   allowed_categories: string[];
   approval_channel: string;
+  telegram_chat_id: string | null;
   approval_timeout_seconds: number;
   block_new_merchants: boolean;
   block_international: boolean;
@@ -128,3 +129,14 @@ export type PurchaseResult =
       expires_at: string;
     }
   | { status: "rejected"; reason: string };
+
+export type ApproveResult =
+  | {
+      status: "approved";
+      transaction_id: string;
+      topup_id: string;
+      card_last4: string;
+    }
+  | {
+      status: "rejected";
+    };

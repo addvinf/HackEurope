@@ -166,6 +166,7 @@ export default function SetupPage() {
   const [blockInternational, setBlockInternational] = useState(false);
   const [nightPause, setNightPause] = useState(false);
   const [approvalChannel, setApprovalChannel] = useState("whatsapp");
+  const [telegramChatId, setTelegramChatId] = useState("");
   const [approvalTimeout, setApprovalTimeout] = useState(300);
   const [sendReceipts, setSendReceipts] = useState(true);
   const [weeklySummary, setWeeklySummary] = useState(true);
@@ -345,6 +346,7 @@ export default function SetupPage() {
         block_international: blockInternational,
         night_pause: nightPause,
         approval_channel: approvalChannel,
+        telegram_chat_id: telegramChatId.trim() || null,
         approval_timeout_seconds: approvalTimeout,
         send_receipts: sendReceipts,
         weekly_summary: weeklySummary,
@@ -641,6 +643,24 @@ export default function SetupPage() {
                 </button>
               ))}
             </div>
+
+            {approvalChannel === "telegram" && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                  Telegram chat id
+                </label>
+                <input
+                  type="text"
+                  value={telegramChatId}
+                  onChange={(e) => setTelegramChatId(e.target.value)}
+                  placeholder="e.g. 5526172392"
+                  className="w-full rounded-xl border border-black/[0.12] bg-white px-4 py-3 text-sm outline-none focus:border-[#0071e3]"
+                />
+                <p className="text-xs text-[#86868b] mt-2">
+                  Required for ClawPay bot approvals. The bot will send YES/NO token prompts here.
+                </p>
+              </div>
+            )}
 
             {/* Timeout slider */}
             <div className="mt-4">

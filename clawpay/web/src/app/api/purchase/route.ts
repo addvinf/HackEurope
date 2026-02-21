@@ -1,26 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createServerClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { formatApprovalMessage, sendTelegramMessage } from "@/lib/telegram";
+import { getAdminClient, getUserFromApiToken } from "@/lib/supabase-admin";
 import { wallet } from "@/lib/stripe";
 import type { PurchaseRequest, PurchaseResult } from "@/lib/types";
-
-function getAdminClient() {
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
-}
-
-async function getUserFromToken(token: string) {
-  const supabase = getAdminClient();
-  const { data } = await supabase
-    .from("pairing_codes")
-    .select("user_id")
-    .eq("api_token", token)
-    .eq("used", true)
-    .single();
-  return data?.user_id ?? null;
-}
 
 interface RulesConfig {
   always_ask: boolean;
@@ -181,7 +164,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = await getUserFromToken(token);
+    const userId = await getUserFromApiToken(token);
     if (!userId) {
       return NextResponse.json(
         { error: "Invalid token" },
@@ -344,6 +327,30 @@ export async function POST(request: NextRequest) {
         approval_token: approvalToken,
         expires_at: expiresAt,
       };
+
+      const approvalChannel = String(
+        (config as { approval_channel?: unknown } | null)?.approval_channel || "",
+      ).toLowerCase();
+      const telegramChatId = String(
+        (config as { telegram_chat_id?: unknown } | null)?.telegram_chat_id || "",
+      ).trim();
+
+      if (approvalChannel === "telegram" && telegramChatId) {
+        const message = formatApprovalMessage({
+          item,
+          amount,
+          currency,
+          merchant,
+          approvalToken,
+          expiresAt,
+        });
+        const sendResult = await sendTelegramMessage(telegramChatId, message);
+        if (!sendResult.ok) {
+          console.error(
+            `[clawpay] approval telegram send failed: ${sendResult.description || "unknown"}`,
+          );
+        }
+      }
     } else {
       // Auto-approve: top up the persistent card
       const topUpResult = await wallet.topUp({
