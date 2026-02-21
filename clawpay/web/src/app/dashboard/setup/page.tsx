@@ -162,9 +162,12 @@ export default function SetupPage() {
   const [perPurchaseLimit, setPerPurchaseLimit] = useState(50);
   const [dailyLimit, setDailyLimit] = useState(150);
   const [monthlyLimit, setMonthlyLimit] = useState(500);
+  const [numPurchaseLimit, setNumPurchaseLimit] = useState(25);
   const [blockNewMerchants, setBlockNewMerchants] = useState(true);
   const [blockInternational, setBlockInternational] = useState(false);
   const [nightPause, setNightPause] = useState(false);
+  const [alwaysAsk, setAlwaysAsk] = useState(true);
+  const [blockedCategoriesText, setBlockedCategoriesText] = useState("");
   const [approvalChannel, setApprovalChannel] = useState("whatsapp");
   const [telegramChatId, setTelegramChatId] = useState("");
   const [approvalTimeout, setApprovalTimeout] = useState(300);
@@ -181,7 +184,7 @@ export default function SetupPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const [cardRes, walletRes] = await Promise.all([
+      const [cardRes, walletRes, configRes] = await Promise.all([
         supabase
           .from("cards")
           .select("*")
@@ -190,6 +193,11 @@ export default function SetupPage() {
         supabase
           .from("wallets")
           .select("id")
+          .eq("user_id", user.id)
+          .single(),
+        supabase
+          .from("configs")
+          .select("*")
           .eq("user_id", user.id)
           .single(),
       ]);
@@ -204,6 +212,27 @@ export default function SetupPage() {
         }
       }
       if (walletRes.data) setWalletProvisioned(true);
+      const cfg = configRes.data as Record<string, unknown> | null;
+      if (cfg) {
+        setAlwaysAsk(Boolean(cfg.always_ask ?? true));
+        setPerPurchaseLimit(Number(cfg.per_purchase_limit ?? 50));
+        setDailyLimit(Number(cfg.daily_limit ?? 150));
+        setMonthlyLimit(Number(cfg.monthly_limit ?? 500));
+        setNumPurchaseLimit(Number(cfg.num_purchase_limit ?? 25));
+        setBlockedCategoriesText(
+          Array.isArray(cfg.blocked_categories)
+            ? (cfg.blocked_categories as string[]).join(", ")
+            : "",
+        );
+        setBlockNewMerchants(Boolean(cfg.block_new_merchants ?? true));
+        setBlockInternational(Boolean(cfg.block_international ?? false));
+        setNightPause(Boolean(cfg.night_pause ?? false));
+        setApprovalChannel(String(cfg.approval_channel || "whatsapp"));
+        setTelegramChatId(String(cfg.telegram_chat_id || ""));
+        setApprovalTimeout(Number(cfg.approval_timeout_seconds ?? 300));
+        setSendReceipts(Boolean(cfg.send_receipts ?? true));
+        setWeeklySummary(Boolean(cfg.weekly_summary ?? true));
+      }
       setLoading(false);
     }
     load();
@@ -336,12 +365,20 @@ export default function SetupPage() {
       return;
     }
 
+    const blockedCategories = blockedCategoriesText
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+
     await supabase.from("configs").upsert(
       {
         user_id: user.id,
+        always_ask: alwaysAsk,
         per_purchase_limit: perPurchaseLimit,
         daily_limit: dailyLimit,
         monthly_limit: monthlyLimit,
+        num_purchase_limit: numPurchaseLimit,
+        blocked_categories: blockedCategories,
         block_new_merchants: blockNewMerchants,
         block_international: blockInternational,
         night_pause: nightPause,
@@ -562,6 +599,25 @@ export default function SetupPage() {
               max={5000}
               step={50}
             />
+            <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-6 space-y-4">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium text-[#1d1d1f]">
+                  Max purchases per week
+                </span>
+                <span className="text-[#0071e3] font-semibold tabular-nums">
+                  {numPurchaseLimit}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={100}
+                step={1}
+                value={numPurchaseLimit}
+                onChange={(e) => setNumPurchaseLimit(Number(e.target.value))}
+                className="w-full accent-[#0071e3]"
+              />
+            </div>
             {continueButton()}
           </div>
         );
@@ -580,6 +636,12 @@ export default function SetupPage() {
             </div>
             <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] px-6 divide-y divide-black/[0.06]">
               <Toggle
+                label="Always require approval"
+                description="Every purchase must be manually approved"
+                checked={alwaysAsk}
+                onChange={setAlwaysAsk}
+              />
+              <Toggle
                 label="Block new merchants"
                 description="Require approval for first-time merchants"
                 checked={blockNewMerchants}
@@ -597,6 +659,21 @@ export default function SetupPage() {
                 checked={nightPause}
                 onChange={setNightPause}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                Blocked categories
+              </label>
+              <input
+                type="text"
+                value={blockedCategoriesText}
+                onChange={(e) => setBlockedCategoriesText(e.target.value)}
+                placeholder="e.g. gambling, crypto, adult"
+                className="w-full rounded-xl border border-black/[0.12] bg-white px-4 py-3 text-sm outline-none focus:border-[#0071e3]"
+              />
+              <p className="text-xs text-[#86868b] mt-2">
+                Comma-separated categories to reject.
+              </p>
             </div>
             {continueButton()}
           </div>

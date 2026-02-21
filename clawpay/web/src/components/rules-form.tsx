@@ -9,36 +9,51 @@ interface RulesFormProps {
   saving: boolean;
 }
 
+function fallbackNumber(value: number, fallback: number) {
+  return Number.isFinite(value) ? value : fallback;
+}
+
 export function RulesForm({ config, onSave, saving }: RulesFormProps) {
+  const [alwaysAsk, setAlwaysAsk] = useState(config.always_ask ?? true);
   const [perPurchaseLimit, setPerPurchaseLimit] = useState(
-    Number(config.per_purchase_limit),
+    Number(config.per_purchase_limit ?? 50),
   );
-  const [dailyLimit, setDailyLimit] = useState(Number(config.daily_limit));
+  const [dailyLimit, setDailyLimit] = useState(Number(config.daily_limit ?? 150));
   const [monthlyLimit, setMonthlyLimit] = useState(
-    Number(config.monthly_limit),
+    Number(config.monthly_limit ?? 500),
   );
-  const [blockNewMerchants, setBlockNewMerchants] = useState(
-    config.block_new_merchants,
+  const [numPurchaseLimit, setNumPurchaseLimit] = useState(
+    Number(config.num_purchase_limit ?? 25),
   );
-  const [blockInternational, setBlockInternational] = useState(
-    config.block_international,
+  const [blockedCategoriesText, setBlockedCategoriesText] = useState(
+    (config.blocked_categories || []).join(", "),
   );
-  const [nightPause, setNightPause] = useState(config.night_pause);
+  const [blockNewMerchants, setBlockNewMerchants] = useState(config.block_new_merchants ?? true);
+  const [blockInternational, setBlockInternational] = useState(config.block_international ?? false);
+  const [nightPause, setNightPause] = useState(config.night_pause ?? false);
   const [approvalChannel, setApprovalChannel] = useState(
     config.approval_channel,
   );
   const [approvalTimeout, setApprovalTimeout] = useState(
-    config.approval_timeout_seconds,
+    Number(config.approval_timeout_seconds ?? 300),
   );
-  const [sendReceipts, setSendReceipts] = useState(config.send_receipts);
-  const [weeklySummary, setWeeklySummary] = useState(config.weekly_summary);
+  const [sendReceipts, setSendReceipts] = useState(config.send_receipts ?? true);
+  const [weeklySummary, setWeeklySummary] = useState(config.weekly_summary ?? true);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const blockedCategories = blockedCategoriesText
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+
     onSave({
-      per_purchase_limit: perPurchaseLimit,
-      daily_limit: dailyLimit,
-      monthly_limit: monthlyLimit,
+      always_ask: alwaysAsk,
+      per_purchase_limit: fallbackNumber(perPurchaseLimit, 50),
+      daily_limit: fallbackNumber(dailyLimit, 150),
+      monthly_limit: fallbackNumber(monthlyLimit, 500),
+      num_purchase_limit: fallbackNumber(numPurchaseLimit, 25),
+      blocked_categories: blockedCategories,
       block_new_merchants: blockNewMerchants,
       block_international: blockInternational,
       night_pause: nightPause,
@@ -84,6 +99,15 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
             step={50}
             format={(v) => `$${v}`}
           />
+          <Slider
+            label="Max purchases per week"
+            value={numPurchaseLimit}
+            onChange={setNumPurchaseLimit}
+            min={1}
+            max={100}
+            step={1}
+            format={(v) => `${v}`}
+          />
         </div>
       </section>
 
@@ -121,6 +145,12 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
         <h3 className="text-sm font-semibold text-[#86868b] uppercase tracking-wider">
           Approval
         </h3>
+        <Toggle
+          label="Always require approval"
+          description="Every purchase must be manually approved"
+          checked={alwaysAsk}
+          onChange={setAlwaysAsk}
+        />
         <div>
           <label className="text-sm font-medium mb-2 block">Channel</label>
           <select
@@ -142,6 +172,21 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
           step={60}
           format={(v) => `${Math.floor(v / 60)} min`}
         />
+        <div>
+          <label className="text-sm font-medium mb-2 block">
+            Blocked categories
+          </label>
+          <input
+            type="text"
+            value={blockedCategoriesText}
+            onChange={(e) => setBlockedCategoriesText(e.target.value)}
+            placeholder="e.g. gambling, crypto, adult"
+            className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
+          />
+          <p className="text-xs text-[#86868b] mt-2">
+            Comma-separated categories to reject.
+          </p>
+        </div>
       </section>
 
       {/* Notifications */}
