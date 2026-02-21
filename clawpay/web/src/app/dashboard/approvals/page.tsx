@@ -8,6 +8,7 @@ import { ApprovalCard } from "@/components/approval-card";
 export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(true);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const supabase = createClient();
 
   useEffect(() => {
@@ -57,6 +58,11 @@ export default function ApprovalsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 10000);
+    return () => clearInterval(timer);
+  }, []);
+
   async function handleResolve(approvalId: string, approved: boolean) {
     const { error } = await supabase
       .from("approvals")
@@ -85,8 +91,10 @@ export default function ApprovalsPage() {
     return <div className="h-64" />;
   }
 
-  const pending = approvals.filter((a) => a.status === "pending");
-  const resolved = approvals.filter((a) => a.status !== "pending");
+  const isExpired = (a: Approval) =>
+    a.status === "pending" && new Date(a.expires_at).getTime() <= nowMs;
+  const pending = approvals.filter((a) => a.status === "pending" && !isExpired(a));
+  const resolved = approvals.filter((a) => a.status !== "pending" || isExpired(a));
 
   return (
     <div className="space-y-8">

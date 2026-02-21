@@ -691,12 +691,12 @@ export default function SetupPage() {
                   Max purchases per week
                 </span>
                 <span className="text-[#0071e3] font-semibold tabular-nums">
-                  {numPurchaseLimit}
+                  {numPurchaseLimit === 0 ? "No limit" : numPurchaseLimit}
                 </span>
               </div>
               <input
                 type="range"
-                min={1}
+                min={0}
                 max={100}
                 step={1}
                 value={numPurchaseLimit}

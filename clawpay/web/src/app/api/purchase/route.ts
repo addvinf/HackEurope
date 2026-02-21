@@ -46,6 +46,14 @@ function evaluateRules(
   isKnownMerchant: boolean,
 ): { action: "auto_approve" | "needs_approval" | "reject"; reason?: string; riskFlags: string[] } {
   const riskFlags: string[] = [];
+  const effectivePerPurchaseLimit =
+    Number(config.per_purchase_limit) <= 0 ? Number.POSITIVE_INFINITY : Number(config.per_purchase_limit);
+  const dailyLimit =
+    Number(config.daily_limit) <= 0 ? Number.POSITIVE_INFINITY : Number(config.daily_limit);
+  const monthlyLimit =
+    Number(config.monthly_limit) <= 0 ? Number.POSITIVE_INFINITY : Number(config.monthly_limit);
+  const weeklyPurchaseLimit =
+    Number(config.num_purchase_limit) <= 0 ? Number.POSITIVE_INFINITY : Number(config.num_purchase_limit);
 
   // 1. Blocked category → hard reject
   if (
@@ -82,16 +90,15 @@ function evaluateRules(
   }
 
   // 4. Amount > per_purchase_limit → hard reject
-  if (purchase.amount > Number(config.per_purchase_limit)) {
+  if (purchase.amount > effectivePerPurchaseLimit) {
     return {
       action: "reject",
-      reason: `Amount $${purchase.amount} exceeds per-purchase limit of $${config.per_purchase_limit}`,
+      reason: `Amount $${purchase.amount} exceeds per-purchase limit of $${effectivePerPurchaseLimit}`,
       riskFlags: ["over_limit"],
     };
   }
 
   // 5. Today's spend + amount > daily_limit → hard reject
-  const dailyLimit = Number(config.daily_limit);
   if (todaySpent + purchase.amount > dailyLimit) {
     return {
       action: "reject",
@@ -101,20 +108,20 @@ function evaluateRules(
   }
 
   // 6. Month spend + amount > monthly_limit → hard reject
-  if (monthSpent + purchase.amount > Number(config.monthly_limit)) {
+  if (monthSpent + purchase.amount > monthlyLimit) {
     return {
       action: "reject",
-      reason: `Would exceed monthly limit of $${config.monthly_limit}`,
+      reason: `Would exceed monthly limit of $${monthlyLimit}`,
       riskFlags: ["monthly_limit"],
     };
   }
 
 
   // 7. Exceeded max purchases per week → hard reject
-  if (config.num_purchases >= config.num_purchase_limit) {
+  if (config.num_purchases >= weeklyPurchaseLimit) {
     return {
       action: "reject",
-      reason: `Exceeded maximum purchases per week (${config.num_purchase_limit})`,
+      reason: `Exceeded maximum purchases per week (${weeklyPurchaseLimit})`,
       riskFlags: ["velocity_limit"],
     };
   }
@@ -139,7 +146,7 @@ function evaluateRules(
   }
 
   // 3. Within 20% of daily limit → requires approval
-  if (todaySpent + purchase.amount > dailyLimit * 0.8) {
+  if (Number.isFinite(dailyLimit) && todaySpent + purchase.amount > dailyLimit * 0.8) {
     riskFlags.push("near_daily_limit");
     return {
       action: "needs_approval",

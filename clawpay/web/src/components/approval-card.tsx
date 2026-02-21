@@ -14,6 +14,29 @@ const statusColors: Record<string, string> = {
   expired: "text-[#aeaeb2] bg-black/[0.04]",
 };
 
+const riskFlagLabels: Record<string, string> = {
+  always_ask: "Always require approval is enabled",
+  new_merchant: "First purchase from this merchant",
+  near_daily_limit: "Near your daily spending limit",
+  blocked_category: "Category is blocked",
+  international: "International purchase",
+  night_pause: "Night pause hours",
+  over_limit: "Over per-purchase limit",
+  daily_limit: "Would exceed daily limit",
+  monthly_limit: "Would exceed monthly limit",
+  velocity_limit: "Weekly purchase count limit reached",
+};
+
+function formatRiskFlag(flag: string): string {
+  return (
+    riskFlagLabels[flag] ||
+    flag
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ")
+  );
+}
+
 export function ApprovalCard({ approval, onResolve }: ApprovalCardProps) {
   const isPending = approval.status === "pending";
   const isExpired =
@@ -32,15 +55,18 @@ export function ApprovalCard({ approval, onResolve }: ApprovalCardProps) {
             {approval.currency}
           </p>
           {approval.risk_flags && approval.risk_flags.length > 0 && (
-            <div className="flex gap-1.5 mt-2">
+            <div className="mt-2">
+              <p className="text-xs text-[#86868b] mb-1">Why approval is needed</p>
+              <div className="flex flex-wrap gap-1.5">
               {approval.risk_flags.map((flag) => (
                 <span
                   key={flag}
                   className="text-xs bg-[#ff9f0a]/10 text-[#ff9f0a] px-2 py-0.5 rounded-full font-medium"
                 >
-                  {flag}
+                  {formatRiskFlag(flag)}
                 </span>
               ))}
+              </div>
             </div>
           )}
           <p className="text-xs text-[#aeaeb2] mt-2">

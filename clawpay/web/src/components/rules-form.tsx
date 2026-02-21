@@ -16,6 +16,10 @@ function fallbackNumber(value: number, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function formatCurrencyLimit(value: number) {
+  return value === 0 ? "No limit" : `$${value}`;
+}
+
 export function RulesForm({ config, onSave, saving }: RulesFormProps) {
   const [alwaysAsk, setAlwaysAsk] = useState(config.always_ask ?? true);
   const [perPurchaseLimit, setPerPurchaseLimit] = useState(
@@ -132,38 +136,41 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
             label="Per purchase limit"
             value={perPurchaseLimit}
             onChange={setPerPurchaseLimit}
-            min={5}
+            min={0}
             max={500}
             step={5}
-            format={(v) => `$${v}`}
+            format={formatCurrencyLimit}
           />
           <Slider
             label="Daily limit"
             value={dailyLimit}
             onChange={setDailyLimit}
-            min={10}
+            min={0}
             max={1000}
             step={10}
-            format={(v) => `$${v}`}
+            format={formatCurrencyLimit}
           />
           <Slider
             label="Monthly limit"
             value={monthlyLimit}
             onChange={setMonthlyLimit}
-            min={50}
+            min={0}
             max={5000}
             step={50}
-            format={(v) => `$${v}`}
+            format={formatCurrencyLimit}
           />
           <Slider
             label="Max purchases per week"
             value={numPurchaseLimit}
             onChange={setNumPurchaseLimit}
-            min={1}
+            min={0}
             max={100}
             step={1}
-            format={(v) => `${v}`}
+            format={(v) => (v === 0 ? "No limit" : `${v}`)}
           />
+          <p className="text-xs text-[#86868b]">
+            Set per purchase, daily, monthly, or weekly limit to $0 for no limit.
+          </p>
         </div>
       </section>
 
@@ -197,17 +204,24 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
       </section>
 
       {/* Approval settings */}
-      <section className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-6 space-y-5">
-        <h3 className="text-sm font-semibold text-[#86868b] uppercase tracking-wider">
-          Approval
-        </h3>
-        <Toggle
-          label="Always require approval"
-          description="Every purchase must be manually approved"
-          checked={alwaysAsk}
-          onChange={setAlwaysAsk}
-        />
-        <div>
+      <section className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="px-6 pt-6 pb-3">
+          <h3 className="text-sm font-semibold text-[#86868b] uppercase tracking-wider">
+            Approval
+          </h3>
+        </div>
+        <div className="divide-y divide-black/[0.06]">
+          <div className="mx-4 my-4 rounded-xl bg-[#ff9f0a]/10 border border-[#ff9f0a]/20">
+            <Toggle
+              label="Always require approval"
+              description="Every purchase must be manually approved"
+              checked={alwaysAsk}
+              onChange={setAlwaysAsk}
+            />
+          </div>
+        </div>
+        <div className="p-6 space-y-5">
+          <div>
           <label className="text-sm font-medium mb-2 block">Channel</label>
           <div className="grid grid-cols-3 gap-2">
             {([
@@ -271,30 +285,31 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
               )}
             </div>
           )}
-        </div>
-        <Slider
-          label="Approval timeout"
-          value={approvalTimeout}
-          onChange={setApprovalTimeout}
-          min={60}
-          max={1800}
-          step={60}
-          format={(v) => `${Math.floor(v / 60)} min`}
-        />
-        <div>
-          <label className="text-sm font-medium mb-2 block">
-            Blocked categories
-          </label>
-          <input
-            type="text"
-            value={blockedCategoriesText}
-            onChange={(e) => setBlockedCategoriesText(e.target.value)}
-            placeholder="e.g. gambling, crypto, adult"
-            className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
+          </div>
+          <Slider
+            label="Approval timeout"
+            value={approvalTimeout}
+            onChange={setApprovalTimeout}
+            min={60}
+            max={1800}
+            step={60}
+            format={(v) => `${Math.floor(v / 60)} min`}
           />
-          <p className="text-xs text-[#86868b] mt-2">
-            Comma-separated categories to reject.
-          </p>
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Blocked categories
+            </label>
+            <input
+              type="text"
+              value={blockedCategoriesText}
+              onChange={(e) => setBlockedCategoriesText(e.target.value)}
+              placeholder="e.g. gambling, crypto, adult"
+              className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
+            />
+            <p className="text-xs text-[#86868b] mt-2">
+              Comma-separated categories to reject.
+            </p>
+          </div>
         </div>
       </section>
 
