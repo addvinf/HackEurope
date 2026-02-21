@@ -236,18 +236,6 @@ export async function POST(request: NextRequest) {
       .eq("user_id", userId)
       .single();
 
-    const rules: RulesConfig = config || {
-      always_ask: true,
-      per_purchase_limit: 50,
-      daily_limit: 150,
-      monthly_limit: 500,
-      blocked_categories: [],
-      block_new_merchants: true,
-      block_international: false,
-      night_pause: false,
-      approval_timeout_seconds: 300,
-    };
-
     // Calculate spending
     const today = new Date().toISOString().slice(0, 10);
     const monthStart = new Date();
@@ -277,6 +265,23 @@ export async function POST(request: NextRequest) {
       (sum, t) => sum + Number(t.amount),
       0,
     );
+    const weeklyPurchaseCount = (todayTxnsRes.data || []).length;
+
+    const rules: RulesConfig = {
+      always_ask: Boolean((config as { always_ask?: unknown } | null)?.always_ask ?? true),
+      per_purchase_limit: Number((config as { per_purchase_limit?: unknown } | null)?.per_purchase_limit ?? 50),
+      daily_limit: Number((config as { daily_limit?: unknown } | null)?.daily_limit ?? 150),
+      num_purchase_limit: Number((config as { num_purchase_limit?: unknown } | null)?.num_purchase_limit ?? 25),
+      num_purchases: weeklyPurchaseCount,
+      monthly_limit: Number((config as { monthly_limit?: unknown } | null)?.monthly_limit ?? 500),
+      blocked_categories: Array.isArray((config as { blocked_categories?: unknown } | null)?.blocked_categories)
+        ? ((config as { blocked_categories: string[] }).blocked_categories)
+        : [],
+      block_new_merchants: Boolean((config as { block_new_merchants?: unknown } | null)?.block_new_merchants ?? true),
+      block_international: Boolean((config as { block_international?: unknown } | null)?.block_international ?? false),
+      night_pause: Boolean((config as { night_pause?: unknown } | null)?.night_pause ?? false),
+      approval_timeout_seconds: Number((config as { approval_timeout_seconds?: unknown } | null)?.approval_timeout_seconds ?? 300),
+    };
 
     // Check if merchant is known
     const { data: knownMerchant } = await supabase

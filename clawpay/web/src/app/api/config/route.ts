@@ -50,16 +50,21 @@ export async function GET(request: NextRequest) {
     if (!config) {
       // Return defaults if no config exists
       return NextResponse.json({
+        always_ask: true,
         per_purchase_limit: 50,
         daily_limit: 150,
         monthly_limit: 500,
+        num_purchase_limit: 25,
         blocked_categories: [],
         allowed_categories: [],
         approval_channel: "whatsapp",
+        telegram_chat_id: null,
         approval_timeout_seconds: 300,
         block_new_merchants: true,
         block_international: false,
         night_pause: false,
+        send_receipts: true,
+        weekly_summary: true,
       });
     }
 
