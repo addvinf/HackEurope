@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@supabase/supabase-js";
-import { stripeMock } from "@/lib/stripe-mock";
+import { wallet } from "@/lib/stripe";
 
 function getAdminClient() {
   return createServerClient(
@@ -103,21 +103,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Approved: top up the persistent card
-    const { data: wallet } = await supabase
+    const { data: walletRow } = await supabase
       .from("wallets")
       .select("*")
       .eq("user_id", userId)
       .eq("status", "active")
       .single();
 
-    if (!wallet) {
+    if (!walletRow) {
       return NextResponse.json(
         { error: "No wallet provisioned" },
         { status: 400 },
       );
     }
 
-    const topUpResult = stripeMock.topUp({
+    const topUpResult = await wallet.topUp({
       user_id: userId,
       amount: approval.amount,
       transaction_id: "",
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
         currency: approval.currency,
         merchant: approval.merchant,
         category: approval.category,
-        charge_id: wallet.card_id,
+        charge_id: walletRow.card_id,
         status: "completed",
       })
       .select()
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     // Create topup session
     await supabase.from("topup_sessions").insert({
       user_id: userId,
-      wallet_id: wallet.id,
+      wallet_id: walletRow.id,
       transaction_id: txn!.id,
       topup_id: topUpResult.topup_id,
       amount: approval.amount,
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
     await supabase
       .from("wallets")
       .update({ balance: approval.amount })
-      .eq("id", wallet.id);
+      .eq("id", walletRow.id);
 
     // Track merchant as known
     await supabase
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       status: "approved",
       transaction_id: txn!.id,
       topup_id: topUpResult.topup_id,
-      card_last4: wallet.card_last4,
+      card_last4: walletRow.card_last4,
     });
   } catch {
     return NextResponse.json(

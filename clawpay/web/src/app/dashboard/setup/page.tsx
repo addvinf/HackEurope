@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Card } from "@/lib/types";
-import { CardPreview } from "@/components/card-preview";
+import { CardPreview, CardInputFields } from "@/components/card-preview";
 
 /* ── Step definitions ── */
 type Step =
@@ -192,7 +192,16 @@ export default function SetupPage() {
           .eq("user_id", user.id)
           .single(),
       ]);
-      if (cardRes.data) setCards(cardRes.data);
+      if (cardRes.data) {
+        setCards(cardRes.data);
+        // Prefill form with the most recent card's known details
+        const latest = cardRes.data[0];
+        if (latest) {
+          setExpMonth(String(latest.exp_month).padStart(2, "0"));
+          setExpYear(String(latest.exp_year).slice(-2));
+          if (latest.name_on_card) setNameOnCard(latest.name_on_card);
+        }
+      }
       if (walletRes.data) setWalletProvisioned(true);
       setLoading(false);
     }
@@ -252,8 +261,6 @@ export default function SetupPage() {
   }, [step, goTo]);
 
   /* ── Card form handlers ── */
-  const cardFieldOrder: CardField[] = ["number", "name", "expiry", "cvc"];
-
   function handleCardFieldChange(field: CardField, value: string) {
     switch (field) {
       case "number":
@@ -271,13 +278,6 @@ export default function SetupPage() {
       case "cvc":
         setCvc(value);
         break;
-    }
-  }
-
-  function advanceCardField() {
-    const idx = cardFieldOrder.indexOf(activeCardField || "number");
-    if (idx < cardFieldOrder.length - 1) {
-      setActiveCardField(cardFieldOrder[idx + 1]);
     }
   }
 
@@ -335,19 +335,22 @@ export default function SetupPage() {
       return;
     }
 
-    await supabase.from("configs").upsert({
-      user_id: user.id,
-      per_purchase_limit: perPurchaseLimit,
-      daily_limit: dailyLimit,
-      monthly_limit: monthlyLimit,
-      block_new_merchants: blockNewMerchants,
-      block_international: blockInternational,
-      night_pause: nightPause,
-      approval_channel: approvalChannel,
-      approval_timeout_seconds: approvalTimeout,
-      send_receipts: sendReceipts,
-      weekly_summary: weeklySummary,
-    });
+    await supabase.from("configs").upsert(
+      {
+        user_id: user.id,
+        per_purchase_limit: perPurchaseLimit,
+        daily_limit: dailyLimit,
+        monthly_limit: monthlyLimit,
+        block_new_merchants: blockNewMerchants,
+        block_international: blockInternational,
+        night_pause: nightPause,
+        approval_channel: approvalChannel,
+        approval_timeout_seconds: approvalTimeout,
+        send_receipts: sendReceipts,
+        weekly_summary: weeklySummary,
+      },
+      { onConflict: "user_id" },
+    );
 
     setSavingConfig(false);
   }
@@ -456,11 +459,18 @@ export default function SetupPage() {
                 cardNumber={cardNumber}
                 cvc={cvc}
                 activeField={activeCardField}
-                onFieldChange={handleCardFieldChange}
-                onFieldFocus={setActiveCardField}
-                onAdvanceField={advanceCardField}
               />
             </div>
+
+            <CardInputFields
+              cardNumber={cardNumber}
+              name={nameOnCard}
+              expMonth={expMonth}
+              expYear={expYear}
+              cvc={cvc}
+              onFieldChange={handleCardFieldChange}
+              onFieldFocus={setActiveCardField}
+            />
 
             <form onSubmit={handleAddCard}>
               {continueButton(

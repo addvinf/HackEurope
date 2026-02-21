@@ -79,6 +79,9 @@ export interface Wallet {
   balance: number;
   currency: string;
   status: string;
+  stripe_account_id: string | null;
+  stripe_financial_account_id: string | null;
+  stripe_cardholder_id: string | null;
   created_at: string;
 }
 

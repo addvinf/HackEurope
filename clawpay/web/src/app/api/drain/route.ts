@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@supabase/supabase-js";
-import { stripeMock } from "@/lib/stripe-mock";
+import { wallet } from "@/lib/stripe";
 
 function getAdminClient() {
   return createServerClient(
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Drain the card
-    const drainResult = stripeMock.drain({
+    const drainResult = await wallet.drain({
       user_id: userId,
       reason: success ? "checkout_success" : "checkout_failed",
     });

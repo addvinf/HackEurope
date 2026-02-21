@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
-import { stripeMock } from "@/lib/stripe-mock";
+import { wallet } from "@/lib/stripe";
 import type { PurchaseRequest, PurchaseResult } from "@/lib/types";
 
 function getAdminClient() {
@@ -222,14 +222,14 @@ export async function POST(request: NextRequest) {
       .lt("expires_at", new Date().toISOString());
 
     // Verify user has a provisioned wallet
-    const { data: wallet } = await supabase
+    const { data: walletRow } = await supabase
       .from("wallets")
       .select("*")
       .eq("user_id", userId)
       .eq("status", "active")
       .single();
 
-    if (!wallet) {
+    if (!walletRow) {
       return NextResponse.json(
         { error: "No wallet provisioned. Call /api/provision-wallet first." },
         { status: 400 },
@@ -346,7 +346,7 @@ export async function POST(request: NextRequest) {
       };
     } else {
       // Auto-approve: top up the persistent card
-      const topUpResult = stripeMock.topUp({
+      const topUpResult = await wallet.topUp({
         user_id: userId,
         amount,
         transaction_id: "", // will update after inserting transaction
@@ -364,7 +364,7 @@ export async function POST(request: NextRequest) {
           merchant,
           merchant_url,
           category,
-          charge_id: wallet.card_id,
+          charge_id: walletRow.card_id,
           status: "completed",
         })
         .select()
@@ -373,7 +373,7 @@ export async function POST(request: NextRequest) {
       // Create topup session
       await supabase.from("topup_sessions").insert({
         user_id: userId,
-        wallet_id: wallet.id,
+        wallet_id: walletRow.id,
         transaction_id: txn!.id,
         topup_id: topUpResult.topup_id,
         amount,
@@ -385,7 +385,7 @@ export async function POST(request: NextRequest) {
       await supabase
         .from("wallets")
         .update({ balance: amount })
-        .eq("id", wallet.id);
+        .eq("id", walletRow.id);
 
       // Track merchant as known
       if (!isKnownMerchant) {
@@ -398,7 +398,7 @@ export async function POST(request: NextRequest) {
         status: "approved",
         transaction_id: txn!.id,
         topup_id: topUpResult.topup_id,
-        card_last4: wallet.card_last4,
+        card_last4: walletRow.card_last4,
       };
     }
 

@@ -1,23 +1,10 @@
 import crypto from "node:crypto";
+import { createClient as createServerClient } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------------
 // Persistent Card — the core abstraction
 // ---------------------------------------------------------------------------
 
-/**
- * A persistent virtual card issued once per user, normally at $0 balance.
- *
- * In production this maps to Stripe Issuing:
- *   const card = await stripe.issuing.cards.create({
- *     cardholder: holderId,
- *     type: "virtual",
- *     currency,
- *     spending_controls: { spending_limits: [{ amount: 0, interval: "per_authorization" }] },
- *   });
- *
- * The mock generates a realistic-looking card number so the CDP injection
- * path can be tested end-to-end without a real Stripe account.
- */
 export interface PersistentCard {
   /** Stripe Issuing card ID (icd_mock_...) */
   id: string;
@@ -63,41 +50,94 @@ export interface ChargeResult {
   created: number;
 }
 
-// In-memory store: one card per user
+// In-memory store: one card per user (acts as cache, DB is source of truth)
 const userCards = new Map<string, PersistentCard>();
 const cardIndex = new Map<string, string>(); // card_id → user_id
 const drainTimers = new Map<string, NodeJS.Timeout>();
 
 // ---------------------------------------------------------------------------
+// DB helpers
+// ---------------------------------------------------------------------------
+
+function getAdminClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+}
+
+async function persistCardToDB(userId: string, card: PersistentCard) {
+  const supabase = getAdminClient();
+  await supabase.from("mock_cards").upsert({
+    user_id: userId,
+    card_id: card.id,
+    number: card.number,
+    last4: card.last4,
+    exp_month: card.exp_month,
+    exp_year: card.exp_year,
+    cvc: card.cvc,
+    spending_limit: card.spending_limit,
+    balance: card.balance,
+    currency: card.currency,
+  }, { onConflict: "user_id" });
+}
+
+async function hydrateFromDB(userId: string): Promise<PersistentCard | null> {
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from("mock_cards")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (!data) return null;
+
+  const card: PersistentCard = {
+    id: data.card_id,
+    number: data.number,
+    last4: data.last4,
+    exp_month: data.exp_month,
+    exp_year: data.exp_year,
+    cvc: data.cvc,
+    brand: "visa",
+    spending_limit: Number(data.spending_limit),
+    currency: data.currency,
+    balance: Number(data.balance),
+    created: Math.floor(new Date(data.created_at).getTime() / 1000),
+  };
+
+  userCards.set(userId, card);
+  cardIndex.set(card.id, userId);
+  return card;
+}
+
+async function updateCardInDB(userId: string, updates: { spending_limit?: number; balance?: number }) {
+  const supabase = getAdminClient();
+  await supabase
+    .from("mock_cards")
+    .update(updates)
+    .eq("user_id", userId);
+}
+
+// ---------------------------------------------------------------------------
 // Mock Stripe Wallet Manager
 // ---------------------------------------------------------------------------
 
-/**
- * Mock Stripe provider — wallet-manager pattern.
- *
- * Production mapping:
- *   provisionCard() → stripe.issuing.cards.create() (one-time)
- *   topUp()         → stripe.treasury.inboundTransfers.create() + stripe.issuing.cards.update() (raise spending limit)
- *   drain()         → stripe.issuing.cards.update() (set limit to $0) + sweep balance back
- *   charge()        → handled by Stripe issuing_authorization.request webhook
- */
 export const stripeMock = {
-  /**
-   * Provision a persistent virtual card for a user (one-time).
-   *
-   * Production equivalent:
-   *   stripe.issuing.cards.create({ ... })
-   */
-  provisionCard(params: { user_id: string; currency?: string }): PersistentCard {
-    // If user already has a card, return it
+  async provisionCard(params: { user_id: string; currency?: string }): Promise<PersistentCard> {
+    // Check in-memory cache first
     const existing = userCards.get(params.user_id);
     if (existing) return existing;
+
+    // Check DB (server may have restarted)
+    const fromDB = await hydrateFromDB(params.user_id);
+    if (fromDB) return fromDB;
 
     const id = `icd_mock_${crypto.randomBytes(12).toString("hex")}`;
     const number = generateMockVisaNumber();
     const now = new Date();
     const exp_month = now.getMonth() + 1;
-    const exp_year = now.getFullYear() + 3; // longer expiry for persistent card
+    const exp_year = now.getFullYear() + 3;
 
     const card: PersistentCard = {
       id,
@@ -115,39 +155,48 @@ export const stripeMock = {
 
     userCards.set(params.user_id, card);
     cardIndex.set(id, params.user_id);
+
+    // Persist to DB
+    await persistCardToDB(params.user_id, card);
+
     return card;
   },
 
-  /**
-   * Get the user's persistent card.
-   */
-  getCard(userId: string): PersistentCard | null {
-    return userCards.get(userId) ?? null;
+  async getCard(userId: string): Promise<PersistentCard | null> {
+    // Check in-memory cache
+    const cached = userCards.get(userId);
+    if (cached) return cached;
+
+    // Hydrate from DB if cache is empty (server restarted)
+    return hydrateFromDB(userId);
   },
 
-  /**
-   * Get a card by its card_id.
-   */
-  getCardById(cardId: string): PersistentCard | null {
+  async getCardById(cardId: string): Promise<PersistentCard | null> {
     const userId = cardIndex.get(cardId);
-    if (!userId) return null;
-    return userCards.get(userId) ?? null;
+    if (userId) return userCards.get(userId) ?? null;
+
+    // Fallback: look up in DB by card_id
+    const supabase = getAdminClient();
+    const { data } = await supabase
+      .from("mock_cards")
+      .select("user_id")
+      .eq("card_id", cardId)
+      .single();
+
+    if (!data) return null;
+    return hydrateFromDB(data.user_id);
   },
 
-  /**
-   * Top up the card for a purchase. Sets balance and spending limit,
-   * starts an auto-drain timer.
-   *
-   * Production equivalent:
-   *   stripe.treasury.inboundTransfers.create() + stripe.issuing.cards.update()
-   */
-  topUp(params: {
+  async topUp(params: {
     user_id: string;
     amount: number;
     transaction_id: string;
     timeout_seconds?: number;
-  }): TopUpResult {
-    const card = userCards.get(params.user_id);
+  }): Promise<TopUpResult> {
+    let card = userCards.get(params.user_id);
+    if (!card) {
+      card = await hydrateFromDB(params.user_id) ?? undefined;
+    }
     if (!card) throw new Error("No wallet provisioned for user");
 
     const timeout = params.timeout_seconds ?? 120;
@@ -157,7 +206,13 @@ export const stripeMock = {
     card.balance = params.amount;
     card.spending_limit = params.amount;
 
-    // Auto-drain timer (safety net)
+    // Persist to DB
+    await updateCardInDB(params.user_id, {
+      balance: params.amount,
+      spending_limit: params.amount,
+    });
+
+    // Auto-drain timer (safety net) — in-memory only
     const existingTimer = drainTimers.get(params.user_id);
     if (existingTimer) clearTimeout(existingTimer);
 
@@ -173,19 +228,16 @@ export const stripeMock = {
     };
   },
 
-  /**
-   * Drain the card back to $0 after checkout.
-   *
-   * Production equivalent:
-   *   stripe.issuing.cards.update() (set spending limit to $0) + sweep balance
-   */
-  drain(params: { user_id: string; reason: string }): DrainResult {
+  async drain(params: { user_id: string; reason: string }): Promise<DrainResult> {
     const card = userCards.get(params.user_id);
     if (!card) return { drained_amount: 0, reason: params.reason };
 
     const drained = card.balance;
     card.balance = 0;
     card.spending_limit = 0;
+
+    // Persist to DB
+    await updateCardInDB(params.user_id, { balance: 0, spending_limit: 0 });
 
     // Clear auto-drain timer
     const timer = drainTimers.get(params.user_id);
@@ -197,18 +249,15 @@ export const stripeMock = {
     return { drained_amount: drained, reason: params.reason };
   },
 
-  /**
-   * Check if the user has an active top-up (card is funded).
-   */
-  hasActiveTopUp(userId: string): boolean {
+  async hasActiveTopUp(userId: string): Promise<boolean> {
     const card = userCards.get(userId);
-    return !!card && card.balance > 0;
+    if (card) return card.balance > 0;
+
+    // Check DB if not in cache
+    const fromDB = await hydrateFromDB(userId);
+    return !!fromDB && fromDB.balance > 0;
   },
 
-  /**
-   * Simulate a charge against the persistent card.
-   * In production this happens automatically via Stripe issuing_authorization.request webhook.
-   */
   async charge(params: {
     amount: number;
     currency: string;
@@ -216,7 +265,7 @@ export const stripeMock = {
   }): Promise<ChargeResult> {
     await new Promise((r) => setTimeout(r, 100));
 
-    const card = stripeMock.getCardById(params.card_id);
+    const card = await stripeMock.getCardById(params.card_id);
 
     if (!card) {
       return {
