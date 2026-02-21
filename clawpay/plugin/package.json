@@ -14,5 +14,8 @@
     "extensions": [
       "./index.ts"
     ]
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.48"
   }
 }
