@@ -6,7 +6,7 @@
   "configSchema": {
     "type": "object",
     "properties": {
-      "apiUrl": { "type": "string", "default": "http://localhost:3000" },
+      "apiUrl": { "type": "string", "default": "https://clawpay.tech" },
       "apiToken": { "type": "string", "default": "" }
     },
     "additionalProperties": false

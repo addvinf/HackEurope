@@ -147,5 +147,5 @@ export function createClawPayClient(
   apiUrl: string,
   apiToken: string,
 ): ClawPayClient {
-  return new ClawPayClient(apiUrl || "http://localhost:3000", apiToken || "");
+  return new ClawPayClient(apiUrl || "https://clawpay.tech", apiToken || "");
 }

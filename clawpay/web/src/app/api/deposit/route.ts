@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createServerClient } from "@supabase/supabase-js";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 import { stripeMock } from "@/lib/stripe-mock";
 
 function getAdminClient() {
-  return createServerClient(
+  return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   );
@@ -13,16 +14,30 @@ function getAdminClient() {
  * POST /api/deposit
  *
  * Deposits funds into the user's wallet (mock Stripe Checkout).
- * Body: { user_id: string, amount: number }
+ * Body: { amount: number }
+ * Auth: Supabase session cookie (automatic for same-origin dashboard requests)
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { user_id, amount } = body;
+    // Authenticate via session cookie
+    const supabaseAuth = await createClient();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
 
-    if (!user_id || !amount) {
+    if (authError || !user) {
       return NextResponse.json(
-        { error: "Missing required fields: user_id, amount" },
+        { error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    const user_id = user.id;
+
+    const body = await request.json();
+    const { amount } = body;
+
+    if (!amount) {
+      return NextResponse.json(
+        { error: "Missing required field: amount" },
         { status: 400 },
       );
     }

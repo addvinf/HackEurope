@@ -4,7 +4,7 @@ set -euo pipefail
 # ── ClawPay One-Command Setup ──────────────────────────────────────────────────
 # Usage: ./bin/setup.sh <PAIRING_CODE> [--api-url https://clawpay.example.com]
 
-DEFAULT_API_URL="http://localhost:3000"
+DEFAULT_API_URL="https://clawpay.tech"
 PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

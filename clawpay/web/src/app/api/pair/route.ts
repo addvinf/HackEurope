@@ -8,8 +8,54 @@ function getAdminClient() {
   );
 }
 
+// In-memory rate limiting (resets on deploy — acceptable for hackathon)
+const failedAttempts = new Map<string, { count: number; firstAttempt: number }>();
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_FAILED_ATTEMPTS = 5;
+
+function getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function isRateLimited(ip: string): boolean {
+  const entry = failedAttempts.get(ip);
+  if (!entry) return false;
+
+  // Window expired — clear and allow
+  if (Date.now() - entry.firstAttempt > RATE_LIMIT_WINDOW_MS) {
+    failedAttempts.delete(ip);
+    return false;
+  }
+
+  return entry.count >= MAX_FAILED_ATTEMPTS;
+}
+
+function recordFailedAttempt(ip: string): void {
+  const entry = failedAttempts.get(ip);
+  const now = Date.now();
+
+  if (!entry || now - entry.firstAttempt > RATE_LIMIT_WINDOW_MS) {
+    failedAttempts.set(ip, { count: 1, firstAttempt: now });
+  } else {
+    entry.count++;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+
+    if (isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: "Too many failed attempts. Try again later." },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const { code } = body;
 
@@ -31,6 +77,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error || !pairing) {
+      recordFailedAttempt(ip);
       return NextResponse.json(
         { error: "Invalid or expired pairing code" },
         { status: 404 },
@@ -39,6 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Check expiry
     if (new Date(pairing.expires_at) < new Date()) {
+      recordFailedAttempt(ip);
       return NextResponse.json(
         { error: "Pairing code has expired" },
         { status: 410 },

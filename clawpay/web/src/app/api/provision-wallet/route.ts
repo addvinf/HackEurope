@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createServerClient } from "@supabase/supabase-js";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 import { stripeMock } from "@/lib/stripe-mock";
 
 function getAdminClient() {
-  return createServerClient(
+  return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   );
@@ -15,13 +16,12 @@ function getAdminClient() {
  * Provisions a persistent virtual card for the authenticated user.
  * Called once during setup — idempotent (returns existing wallet if already provisioned).
  *
- * Body: { user_id: string } (from authenticated session)
+ * Auth: Bearer token (plugin) or Supabase session cookie (dashboard)
  */
 export async function POST(request: NextRequest) {
   try {
     const supabase = getAdminClient();
 
-    // Authenticate via Supabase session cookie
     const authHeader = request.headers.get("authorization");
     let userId: string | null = null;
 
@@ -36,9 +36,12 @@ export async function POST(request: NextRequest) {
         .single();
       userId = data?.user_id ?? null;
     } else {
-      // Dashboard-style auth: expect user_id in body
-      const body = await request.json().catch(() => ({}));
-      userId = body.user_id ?? null;
+      // Dashboard-style auth: read session cookie
+      const supabaseAuth = await createClient();
+      const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+      if (!authError && user) {
+        userId = user.id;
+      }
     }
 
     if (!userId) {
