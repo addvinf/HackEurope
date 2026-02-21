@@ -42,10 +42,23 @@ export class ClawPayClient {
     });
 
     if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(
-        (body as { error?: string }).error || `HTTP ${res.status}`,
-      );
+      const body = await res
+        .json()
+        .catch(() => ({ error: res.statusText })) as { error?: string };
+      const apiError = body.error || res.statusText;
+
+      if (res.status === 401) {
+        throw new Error(
+          `Authentication failed (401): ${apiError}. Pair again with /clawpay-pair <code>.`,
+        );
+      }
+      if (res.status === 400) {
+        throw new Error(`Request rejected (400): ${apiError}`);
+      }
+      if (res.status >= 500) {
+        throw new Error(`ClawPay API unavailable (${res.status}): ${apiError}`);
+      }
+      throw new Error(`ClawPay API error (${res.status}): ${apiError}`);
     }
 
     return res.json() as Promise<T>;
@@ -63,10 +76,17 @@ export class ClawPayClient {
     });
 
     if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(
-        (body as { error?: string }).error || `HTTP ${res.status}`,
-      );
+      const body = await res
+        .json()
+        .catch(() => ({ error: res.statusText })) as { error?: string };
+      const apiError = body.error || res.statusText;
+      if (res.status === 400 || res.status === 401) {
+        throw new Error(`Pairing failed: ${apiError}`);
+      }
+      if (res.status >= 500) {
+        throw new Error(`Pairing backend unavailable (${res.status}): ${apiError}`);
+      }
+      throw new Error(`Pairing API error (${res.status}): ${apiError}`);
     }
 
     return res.json() as Promise<{ api_token: string; user_id: string }>;

@@ -1,5 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import type { ClawPayClient } from "./supabase-client.js";
+import type { PurchaseToolInput } from "./types.js";
 import { buildCdpInjectionPayload } from "./cdp-inject.js";
 
 export function createPurchaseTool(client: ClawPayClient) {
@@ -16,9 +17,13 @@ export function createPurchaseTool(client: ClawPayClient) {
     parameters: Type.Object({
       item: Type.String({ description: "Name/description of the item being purchased" }),
       amount: Type.Number({ description: "Price in the specified currency (e.g. 49.99)" }),
-      currency: Type.Optional(
-        Type.String({ description: "ISO currency code (default: USD)" }),
-      ),
+      currency: Type.String({
+        description: "ISO currency code (for example: USD)",
+      }),
+      userConfirmed: Type.Boolean({
+        description:
+          "Must be true only after explicit user confirmation of item + amount + merchant",
+      }),
       merchant: Type.String({ description: "Name of the merchant/store" }),
       merchant_url: Type.Optional(
         Type.String({ description: "URL of the product or merchant" }),
@@ -47,24 +52,45 @@ export function createPurchaseTool(client: ClawPayClient) {
         };
       }
 
-      const item = String(params.item || "");
-      const amount = Number(params.amount);
-      const currency = String(params.currency || "USD");
-      const merchant = String(params.merchant || "");
-      const merchant_url = params.merchant_url
-        ? String(params.merchant_url)
-        : undefined;
-      const category = params.category
-        ? String(params.category)
-        : undefined;
-      const international = params.international === true;
+      const input: PurchaseToolInput = {
+        item: String(params.item || ""),
+        amount: Number(params.amount),
+        currency: String(params.currency || ""),
+        userConfirmed: params.userConfirmed === true,
+        merchant: String(params.merchant || ""),
+        merchant_url: params.merchant_url ? String(params.merchant_url) : undefined,
+        category: params.category ? String(params.category) : undefined,
+        international: params.international === true,
+      };
 
-      if (!item || !amount || !merchant) {
+      const {
+        item,
+        amount,
+        currency,
+        userConfirmed,
+        merchant,
+        merchant_url,
+        category,
+        international,
+      } = input;
+
+      if (!item || !Number.isFinite(amount) || amount <= 0 || !currency || !merchant) {
         return {
           content: [
             {
               type: "text" as const,
-              text: "Missing required fields: item, amount, and merchant are all required.",
+              text: "Missing or invalid required fields: item, amount (> 0), currency, merchant.",
+            },
+          ],
+        };
+      }
+
+      if (!userConfirmed) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Purchase blocked: userConfirmed must be true before calling clawpay_purchase.",
             },
           ],
         };

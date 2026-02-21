@@ -43,10 +43,13 @@ export default function register(api: OpenClawPluginApi) {
       api.logger.info(`ClawPay paired successfully`);
 
       // Auto-persist the token so it survives restarts
-      if (api.runtime?.setConfig) {
+      const runtime = api.runtime as
+        | { setConfig?: (path: string, value: unknown) => Promise<void> }
+        | undefined;
+      if (runtime?.setConfig) {
         try {
-          await api.runtime.setConfig("plugins.entries.clawpay.config.apiToken", token);
-          await api.runtime.setConfig("plugins.entries.clawpay.config.apiUrl", apiUrl);
+          await runtime.setConfig("plugins.entries.clawpay.config.apiToken", token);
+          await runtime.setConfig("plugins.entries.clawpay.config.apiUrl", apiUrl);
           api.logger.info("API token saved to OpenClaw config.");
         } catch {
           api.logger.warn(

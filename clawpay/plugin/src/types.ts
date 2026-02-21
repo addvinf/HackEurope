@@ -1,11 +1,15 @@
 export interface PurchaseRequest {
   item: string;
   amount: number;
-  currency?: string;
+  currency: string;
   merchant: string;
   merchant_url?: string;
   category?: string;
   international?: boolean;
+}
+
+export interface PurchaseToolInput extends PurchaseRequest {
+  userConfirmed: boolean;
 }
 
 export type PurchaseResult =
