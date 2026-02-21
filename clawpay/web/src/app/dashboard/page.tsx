@@ -181,48 +181,64 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <h1 className="text-3xl font-semibold tracking-tight">Spending Overview</h1>
 
-      {/* Wallet balance widget */}
+      {/* Wallet + Card balance widgets */}
       {wallet ? (
-        <div
-          className={`rounded-2xl p-6 transition-all ${
-            activeTopUp
-              ? "bg-[#fff8e1] shadow-[0_2px_12px_rgba(255,159,10,0.12)]"
-              : "bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-[#86868b]">Wallet Balance</p>
-              <p className="text-4xl font-semibold mt-1 tracking-tight">
-                ${Number(wallet.balance).toFixed(2)}
-              </p>
-              <div className="flex items-center gap-1.5 font-mono text-sm mt-2 text-[#86868b]">
-                {wallet.card_brand === "visa" ? (
-                  <img src="/visa-logo.png" alt="Visa" className="h-4 opacity-50" />
-                ) : (
-                  <span>{wallet.card_brand.toUpperCase()}</span>
-                )}
-                <span>&bull;&bull;&bull;&bull; {wallet.card_last4}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Left card — Wallet Balance */}
+          <div className="rounded-2xl p-6 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+            <div className="flex flex-col justify-between h-full">
+              <div>
+                <p className="text-sm text-[#86868b]">Wallet Balance</p>
+                <p className="text-4xl font-semibold mt-1 tracking-tight">
+                  ${Number(wallet.balance).toFixed(2)}
+                </p>
               </div>
-            </div>
-            <div className="text-right flex flex-col items-end gap-3">
-              {activeTopUp && (
-                <div>
-                  <p className="text-[#ff9f0a] font-semibold text-sm">
-                    PURCHASE IN PROGRESS
-                  </p>
-                  <p className="text-xs text-[#86868b] mt-1">
-                    ${Number(activeTopUp.amount).toFixed(2)} &mdash; drains{" "}
-                    {new Date(activeTopUp.expires_at).toLocaleTimeString()}
-                  </p>
-                </div>
-              )}
               <button
                 onClick={() => setShowDepositModal(true)}
-                className="px-5 py-2.5 bg-[#0071e3] text-white rounded-xl text-sm font-medium hover:bg-[#0077ED] transition-colors"
+                className="mt-4 px-5 py-2.5 bg-[#0071e3] text-white rounded-xl text-sm font-medium hover:bg-[#0077ED] transition-colors self-start"
               >
                 Add funds
               </button>
+            </div>
+          </div>
+
+          {/* Right card — Virtual Card */}
+          <div
+            className={`rounded-2xl p-6 transition-all ${
+              activeTopUp
+                ? "bg-[#fff8e1] shadow-[0_2px_12px_rgba(255,159,10,0.12)]"
+                : "bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]"
+            }`}
+          >
+            <div className="flex flex-col justify-between h-full">
+              <div>
+                <p className="text-sm text-[#86868b]">Virtual Card</p>
+                <p className="text-4xl font-semibold mt-1 tracking-tight">
+                  ${activeTopUp ? Number(activeTopUp.amount).toFixed(2) : "0.00"}
+                </p>
+                <div className="flex items-center gap-1.5 font-mono text-sm mt-2 text-[#86868b]">
+                  {wallet.card_brand === "visa" ? (
+                    <img src="/visa-logo.png" alt="Visa" className="h-4 opacity-50" />
+                  ) : (
+                    <span>{wallet.card_brand.toUpperCase()}</span>
+                  )}
+                  <span>&bull;&bull;&bull;&bull; {wallet.card_last4}</span>
+                </div>
+              </div>
+              <div className="mt-4">
+                {activeTopUp ? (
+                  <div>
+                    <p className="text-[#ff9f0a] font-semibold text-sm">
+                      PURCHASE IN PROGRESS
+                    </p>
+                    <p className="text-xs text-[#86868b] mt-1">
+                      Drains {new Date(activeTopUp.expires_at).toLocaleTimeString()}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[#34c759] font-semibold text-sm">IDLE</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
