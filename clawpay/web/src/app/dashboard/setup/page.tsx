@@ -165,6 +165,7 @@ export default function SetupPage() {
   const [blockNewMerchants, setBlockNewMerchants] = useState(true);
   const [blockInternational, setBlockInternational] = useState(false);
   const [nightPause, setNightPause] = useState(false);
+  const [alwaysAsk, setAlwaysAsk] = useState(true);
   const [approvalChannel, setApprovalChannel] = useState("whatsapp");
   const [telegramChatId, setTelegramChatId] = useState("");
   const [approvalTimeout, setApprovalTimeout] = useState(300);
@@ -345,6 +346,7 @@ export default function SetupPage() {
         block_new_merchants: blockNewMerchants,
         block_international: blockInternational,
         night_pause: nightPause,
+        always_ask: alwaysAsk,
         approval_channel: approvalChannel,
         telegram_chat_id: telegramChatId.trim() || null,
         approval_timeout_seconds: approvalTimeout,
@@ -579,6 +581,12 @@ export default function SetupPage() {
               </p>
             </div>
             <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] px-6 divide-y divide-black/[0.06]">
+              <Toggle
+                label="Always require approval"
+                description="Every purchase must be manually approved"
+                checked={alwaysAsk}
+                onChange={setAlwaysAsk}
+              />
               <Toggle
                 label="Block new merchants"
                 description="Require approval for first-time merchants"

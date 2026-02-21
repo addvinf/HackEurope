@@ -10,6 +10,7 @@ interface RulesFormProps {
 }
 
 export function RulesForm({ config, onSave, saving }: RulesFormProps) {
+  const [alwaysAsk, setAlwaysAsk] = useState(config.always_ask);
   const [perPurchaseLimit, setPerPurchaseLimit] = useState(
     Number(config.per_purchase_limit),
   );
@@ -42,6 +43,7 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
       block_new_merchants: blockNewMerchants,
       block_international: blockInternational,
       night_pause: nightPause,
+      always_ask: alwaysAsk,
       approval_channel: approvalChannel,
       approval_timeout_seconds: approvalTimeout,
       send_receipts: sendReceipts,
@@ -121,6 +123,12 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
         <h3 className="text-sm font-semibold text-[#86868b] uppercase tracking-wider">
           Approval
         </h3>
+        <Toggle
+          label="Always require approval"
+          description="Every purchase must be manually approved"
+          checked={alwaysAsk}
+          onChange={setAlwaysAsk}
+        />
         <div>
           <label className="text-sm font-medium mb-2 block">Channel</label>
           <select
