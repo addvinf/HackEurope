@@ -203,14 +203,18 @@ export default function SetupPage() {
     // Open Telegram immediately (before any await) so the browser doesn't block the popup
     window.open(`https://t.me/${TELEGRAM_BOT}?start=${code}`, "_blank");
 
-    const { error: insertErr } = await supabase.from("telegram_link_codes").insert({
-      user_id: user.id,
-      code,
-      expires_at: expiresAt,
+    const session = (await supabase.auth.getSession()).data.session;
+    const res = await fetch("/api/telegram/link-code", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ code, expires_at: expiresAt }),
     });
 
-    if (insertErr) {
-      console.error("Failed to insert telegram link code:", insertErr);
+    if (!res.ok) {
+      console.error("Failed to insert telegram link code:", await res.text());
     }
 
     setTelegramLinking(true);
