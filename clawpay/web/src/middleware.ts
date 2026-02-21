@@ -1,7 +1,12 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
+  // Let CORS preflight requests pass straight through to the route handler
+  if (request.method === "OPTIONS") {
+    return NextResponse.next();
+  }
+
   return await updateSession(request);
 }
 
