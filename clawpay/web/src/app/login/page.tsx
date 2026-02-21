@@ -36,7 +36,9 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
-        router.push("/dashboard");
+        // Full page navigation so the middleware picks up the fresh auth cookies
+        window.location.href = "/dashboard";
+        return;
       }
     }
     setLoading(false);
