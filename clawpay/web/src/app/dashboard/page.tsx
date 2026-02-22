@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
 import type { Transaction, Config, Wallet, TopUpSession, WalletLedgerEntry } from "@/lib/types";
 import { SpendingChart } from "@/components/spending-chart";
@@ -287,8 +288,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Stripe Checkout modal */}
-      {showDepositModal && (
+      {/* Stripe Checkout modal — portaled to body to escape transform stacking context */}
+      {showDepositModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* Backdrop */}
           <div
@@ -471,7 +472,8 @@ export default function DashboardPage() {
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
