@@ -15,6 +15,8 @@ const statusColors: Record<string, string> = {
 };
 
 const riskFlagLabels: Record<string, string> = {
+  auto_approved: "Automatically approved",
+  auto_rejected: "Automatically rejected",
   always_ask: "Always require approval is enabled",
   new_merchant: "First purchase from this merchant",
   near_daily_limit: "Near your daily spending limit",
@@ -41,6 +43,14 @@ export function ApprovalCard({ approval, onResolve }: ApprovalCardProps) {
   const isPending = approval.status === "pending";
   const isExpired =
     isPending && new Date(approval.expires_at) < new Date();
+  const isAutoApproved =
+    Array.isArray(approval.risk_flags) &&
+    approval.risk_flags.length === 1 &&
+    approval.risk_flags[0] === "auto_approved";
+  const isAutoRejected =
+    Array.isArray(approval.risk_flags) &&
+    approval.risk_flags.length === 1 &&
+    approval.risk_flags[0] === "auto_rejected";
 
   const statusKey = isExpired ? "expired" : approval.status;
   const statusStyle = statusColors[statusKey] || "text-[#aeaeb2] bg-black/[0.04]";
@@ -54,7 +64,21 @@ export function ApprovalCard({ approval, onResolve }: ApprovalCardProps) {
             {approval.merchant} &middot; ${Number(approval.amount).toFixed(2)}{" "}
             {approval.currency}
           </p>
-          {approval.risk_flags && approval.risk_flags.length > 0 && (
+          {isAutoApproved && (
+            <div className="mt-2">
+              <div className="inline-flex text-xs bg-[#34c759]/10 text-[#34c759] px-2 py-0.5 rounded-full font-medium">
+                Automatically approved
+              </div>
+            </div>
+          )}
+          {isAutoRejected && (
+            <div className="mt-2">
+              <div className="inline-flex text-xs bg-[#ff3b30]/10 text-[#ff3b30] px-2 py-0.5 rounded-full font-medium">
+                Automatically rejected
+              </div>
+            </div>
+          )}
+          {!isAutoApproved && !isAutoRejected && approval.risk_flags && approval.risk_flags.length > 0 && (
             <div className="mt-2">
               <p className="text-xs text-[#86868b] mb-1">Why approval is needed</p>
               <div className="flex flex-wrap gap-1.5">
