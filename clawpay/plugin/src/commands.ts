@@ -1,3 +1,4 @@
+import type { PluginCommandContext } from "openclaw/plugin-sdk";
 import type { ClawPayClient } from "./supabase-client.js";
 
 // ── /spending ───────────────────────────────────────────────────────────────
@@ -6,13 +7,13 @@ export function createSpendingCommand(client: ClawPayClient) {
   return {
     name: "/spending",
     description: "Show your current ClawPay spending rules",
-    async handler() {
+    async handler(_ctx: PluginCommandContext) {
       if (!client.isPaired) {
-        return "ClawPay is not paired. Run /clawpay-pair <code> first.";
+        return { text: "ClawPay is not paired. Run /clawpay-pair <code> first." };
       }
 
       const cfg = await client.getConfig();
-      if (cfg.error) return `Error: ${cfg.error}`;
+      if (cfg.error) return { text: `Error: ${cfg.error}` };
 
       const lines = [
         "**ClawPay Spending Rules**",
@@ -34,7 +35,7 @@ export function createSpendingCommand(client: ClawPayClient) {
         lines.push(`Blocked categories:  ${cfg.blocked_categories.join(", ")}`);
       }
 
-      return lines.join("\n");
+      return { text: lines.join("\n") };
     },
   };
 }
@@ -48,19 +49,20 @@ export function createPairCommand(
   return {
     name: "/clawpay-pair",
     description: "Pair ClawPay with a 6-digit code from your dashboard",
-    async handler(args: string) {
-      const code = (args || "").trim();
+    acceptsArgs: true,
+    async handler(ctx: PluginCommandContext) {
+      const code = (ctx.args || ctx.commandBody || "").trim();
       if (!/^\d{6}$/.test(code)) {
-        return "Usage: /clawpay-pair <6-digit code>\nGenerate a code at your ClawPay dashboard → Pair.";
+        return { text: "Usage: /clawpay-pair <6-digit code>\nGenerate a code at your ClawPay dashboard → Pair." };
       }
 
       try {
         const { api_token, user_id } = await client.pair(code);
         await onPaired(api_token);
-        return `Paired successfully! User: ${user_id}`;
+        return { text: `Paired successfully! User: ${user_id}` };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
-        return `Pairing failed: ${message}`;
+        return { text: `Pairing failed: ${message}` };
       }
     },
   };
@@ -72,7 +74,7 @@ export function createDebugCommand(client: ClawPayClient, apiUrl: string) {
   return {
     name: "/clawpay-debug",
     description: "Show ClawPay pairing and connection status",
-    async handler() {
+    async handler(_ctx: PluginCommandContext) {
       const lines = [
         "**ClawPay Debug Info**",
         "",
@@ -95,7 +97,7 @@ export function createDebugCommand(client: ClawPayClient, apiUrl: string) {
         }
       }
 
-      return lines.join("\n");
+      return { text: lines.join("\n") };
     },
   };
 }
@@ -107,18 +109,19 @@ export function createTestBuyCommand(client: ClawPayClient) {
     name: "/clawpay-testbuy",
     description:
       "Test a purchase: /clawpay-testbuy <amount> <currency> <merchant> <item>",
-    async handler(args: string) {
-      const parts = (args || "").trim().split(/\s+/);
+    acceptsArgs: true,
+    async handler(ctx: PluginCommandContext) {
+      const parts = (ctx.args || ctx.commandBody || "").trim().split(/\s+/);
       if (parts.length < 4) {
-        return "Usage: /clawpay-testbuy <amount> <currency> <merchant> <item...>\nExample: /clawpay-testbuy 9.99 USD Amazon Kindle-Book";
+        return { text: "Usage: /clawpay-testbuy <amount> <currency> <merchant> <item...>\nExample: /clawpay-testbuy 9.99 USD Amazon Kindle-Book" };
       }
 
       const [amountStr, currency, merchant, ...itemParts] = parts;
       const amount = parseFloat(amountStr);
-      if (isNaN(amount) || amount <= 0) return "Invalid amount.";
+      if (isNaN(amount) || amount <= 0) return { text: "Invalid amount." };
 
       if (!client.isPaired) {
-        return "ClawPay is not paired. Run /clawpay-pair <code> first.";
+        return { text: "ClawPay is not paired. Run /clawpay-pair <code> first." };
       }
 
       const result = await client.purchase({
@@ -129,7 +132,7 @@ export function createTestBuyCommand(client: ClawPayClient) {
         userConfirmed: true,
       });
 
-      return "```json\n" + JSON.stringify(result, null, 2) + "\n```";
+      return { text: "```json\n" + JSON.stringify(result, null, 2) + "\n```" };
     },
   };
 }

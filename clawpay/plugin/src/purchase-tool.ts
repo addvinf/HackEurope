@@ -1,5 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import type { ClawPayClient } from "./supabase-client.js";
+import { buildCdpInjectionPayload } from "./cdp-inject.js";
 
 export function createPurchaseTool(client: ClawPayClient) {
   return {
@@ -37,10 +38,33 @@ export function createPurchaseTool(client: ClawPayClient) {
       }),
     }),
 
+    async execute(_id: string, params: Record<string, unknown>) {
+      const input = params as {
+        item: string;
+        amount: number;
+        currency?: string;
+        merchant: string;
+        merchant_url?: string;
+        category?: string;
+        international?: boolean;
+        userConfirmed: boolean;
+      };
+
+      if (!client.isPaired) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "ClawPay is not paired. Run /clawpay-pair <code> first.",
+            },
+          ],
+        };
+      }
+
       const normalized = {
         item: input.item.trim(),
         amount: input.amount,
-        currency: input.currency.trim().toUpperCase(),
+        currency: (input.currency || "USD").trim().toUpperCase(),
         userConfirmed: input.userConfirmed,
         merchant: input.merchant.trim(),
         merchant_url: input.merchant_url?.trim(),
@@ -69,7 +93,12 @@ export function createPurchaseTool(client: ClawPayClient) {
 
       if (!normalized.userConfirmed) {
         return {
-          error: "ClawPay is not paired. Run /clawpay-pair <code> first.",
+          content: [
+            {
+              type: "text" as const,
+              text: "Purchase aborted — user has not confirmed. You must confirm with the user before calling this tool.",
+            },
+          ],
         };
       }
 
@@ -84,9 +113,18 @@ export function createPurchaseTool(client: ClawPayClient) {
           international: normalized.international,
         });
 
+        if ("error" in result) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Purchase failed: ${result.error}`,
+              },
+            ],
+          };
+        }
+
         if (result.status === "approved") {
-          // Purchase authorized; card details are included inline in the response.
-          // The card details never appear in text returned to the LLM.
           const cdpPayload = buildCdpInjectionPayload(result.card);
           const cdpSummary = cdpPayload.summary;
 
@@ -105,7 +143,7 @@ export function createPurchaseTool(client: ClawPayClient) {
                   cdpSummary,
                   "Use the browser tool to submit the checkout form now.",
                   "",
-                  `IMPORTANT: After checkout, call clawpay_complete with topup_id=\"${result.topup_id}\" and success=true/false.`,
+                  `IMPORTANT: After checkout, call clawpay_complete with topup_id="${result.topup_id}" and success=true/false.`,
                 ].join("\n"),
               },
             ],
@@ -155,7 +193,7 @@ export function createPurchaseTool(client: ClawPayClient) {
           };
         }
 
-      if (result.status === "approved") {
+        // status === "rejected"
         return {
           content: [
             {
@@ -179,23 +217,16 @@ export function createPurchaseTool(client: ClawPayClient) {
             },
           },
         };
-      }
-
-      if (result.status === "pending_approval") {
+      } catch (err) {
         return {
-          status: "pending_approval",
-          approval_id: result.approval_id,
-          expires_at: result.expires_at,
-          message:
-            "Purchase requires user approval. Waiting for the user to approve or reject.",
+          content: [
+            {
+              type: "text" as const,
+              text: `Purchase failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+            },
+          ],
         };
       }
-
-      return {
-        status: "rejected",
-        reason: result.reason,
-        message: `Purchase rejected: ${result.reason}`,
-      };
     },
   };
 }
