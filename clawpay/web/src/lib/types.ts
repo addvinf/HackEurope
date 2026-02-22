@@ -51,6 +51,7 @@ export interface Approval {
   id: string;
   user_id: string;
   token: string;
+  transaction_id?: string | null;
   item: string;
   amount: number;
   currency: string;

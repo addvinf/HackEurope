@@ -64,6 +64,11 @@ export function ApprovalCard({ approval, onResolve }: ApprovalCardProps) {
             {approval.merchant} &middot; ${Number(approval.amount).toFixed(2)}{" "}
             {approval.currency}
           </p>
+          {approval.transaction_id && (
+            <p className="text-xs text-[#86868b] mt-1 font-mono">
+              Transaction ID: {approval.transaction_id}
+            </p>
+          )}
           {isAutoApproved && (
             <div className="mt-2">
               <div className="inline-flex text-xs bg-[#34c759]/10 text-[#34c759] px-2 py-0.5 rounded-full font-medium">
@@ -80,7 +85,9 @@ export function ApprovalCard({ approval, onResolve }: ApprovalCardProps) {
           )}
           {!isAutoApproved && !isAutoRejected && approval.risk_flags && approval.risk_flags.length > 0 && (
             <div className="mt-2">
-              <p className="text-xs text-[#86868b] mb-1">Why approval is needed</p>
+              <p className="text-xs mb-1">
+                <span className="font-medium text-[#5f5f64]">Manual review</span>
+              </p>
               <div className="flex flex-wrap gap-1.5">
               {approval.risk_flags.map((flag) => (
                 <span

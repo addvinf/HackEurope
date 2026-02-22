@@ -47,7 +47,6 @@ export default function ApprovalsPage() {
         .limit(50);
 
       const approvalRows = (data || []) as Approval[];
-      setApprovals(approvalRows.map((a) => ({ ...a, source: "approval" as const })));
 
       const approvalSignatureSet = new Set(
         approvalRows.map((a) =>
@@ -69,6 +68,38 @@ export default function ApprovalsPage() {
         .order("created_at", { ascending: false })
         .limit(50);
 
+      const transactionsBySignature = new Map<string, Transaction>();
+      ((transactions || []) as Transaction[]).forEach((txn) => {
+        const key = approvalKey({
+          item: txn.item,
+          merchant: txn.merchant,
+          amount: txn.amount,
+          currency: txn.currency,
+          category: txn.category,
+        });
+        if (!transactionsBySignature.has(key)) {
+          transactionsBySignature.set(key, txn);
+        }
+      });
+
+      setApprovals(
+        approvalRows.map((a) => {
+          const key = approvalKey({
+            item: a.item,
+            merchant: a.merchant,
+            amount: a.amount,
+            currency: a.currency,
+            category: a.category,
+          });
+          const matchedTxn = transactionsBySignature.get(key);
+          return {
+            ...a,
+            transaction_id: a.transaction_id ?? matchedTxn?.id ?? null,
+            source: "approval" as const,
+          };
+        }),
+      );
+
       const autoApprovedRows = ((transactions || []) as Transaction[])
         .filter((txn) => {
           const key = approvalKey({
@@ -85,6 +116,7 @@ export default function ApprovalsPage() {
             id: `auto-${txn.id}`,
             user_id: txn.user_id,
             token: "",
+            transaction_id: txn.id,
             item: txn.item,
             amount: Number(txn.amount),
             currency: txn.currency,
