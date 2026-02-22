@@ -39,12 +39,17 @@ export default function PairPage() {
     <div className="max-w-md mx-auto space-y-8 text-center">
       <h1 className="text-3xl font-semibold tracking-tight">Pair with OpenClaw</h1>
       <p className="text-[#86868b] leading-relaxed">
-        Generate a 6-digit code, then tell your OpenClaw agent:
-        <br />
-        <span className="text-[#1d1d1f] font-mono font-medium">
-          &ldquo;set up clawpay with code XXXXXX&rdquo;
-        </span>
+        Generate a 6-digit code, then run in your OpenClaw agent:
       </p>
+      {code ? (
+        <div className="bg-[#f5f5f7] rounded-xl px-5 py-3 font-mono text-sm text-[#1d1d1f]">
+          /setup-clawpay {code}
+        </div>
+      ) : (
+        <div className="bg-[#f5f5f7] rounded-xl px-5 py-3 font-mono text-sm text-[#1d1d1f]">
+          /setup-clawpay <span className="text-[#86868b]">XXXXXX</span>
+        </div>
+      )}
 
       {code && expiresAt ? (
         <PairingCodeDisplay code={code} expiresAt={expiresAt} />

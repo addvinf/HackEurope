@@ -6,13 +6,28 @@ import type { Config } from "@/lib/types";
 import { RulesForm } from "@/components/rules-form";
 
 function normalizeConfig(config: Config): Config {
+  const perPurchaseLimit =
+    config.per_purchase_limit === null
+      ? null
+      : Number(config.per_purchase_limit ?? 50);
+  const dailyLimit =
+    config.daily_limit === null ? null : Number(config.daily_limit ?? 150);
+  const monthlyLimit =
+    config.monthly_limit === null
+      ? null
+      : Number(config.monthly_limit ?? 500);
+  const weeklyLimit =
+    config.num_purchase_limit === null
+      ? null
+      : Number(config.num_purchase_limit ?? 25);
+
   return {
     ...config,
     always_ask: config.always_ask ?? true,
-    per_purchase_limit: Number(config.per_purchase_limit ?? 50),
-    daily_limit: Number(config.daily_limit ?? 150),
-    monthly_limit: Number(config.monthly_limit ?? 500),
-    num_purchase_limit: Number(config.num_purchase_limit ?? 25),
+    per_purchase_limit: perPurchaseLimit,
+    daily_limit: dailyLimit,
+    monthly_limit: monthlyLimit,
+    num_purchase_limit: weeklyLimit,
     blocked_categories: Array.isArray(config.blocked_categories)
       ? config.blocked_categories
       : [],

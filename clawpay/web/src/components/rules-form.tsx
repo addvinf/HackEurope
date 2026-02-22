@@ -12,21 +12,43 @@ interface RulesFormProps {
   saving: boolean;
 }
 
+const PER_PURCHASE_MAX = 500;
+const DAILY_LIMIT_MAX = 1000;
+const MONTHLY_LIMIT_MAX = 5000;
+const WEEKLY_PURCHASE_MAX = 100;
+
 function fallbackNumber(value: number, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
+}
+
+function normalizeLimitValue(
+  value: number | null | undefined,
+  fallback: number,
+  noLimitValue: number,
+) {
+  if (value === null) return noLimitValue;
+  const numeric = Number(value ?? fallback);
+  if (!Number.isFinite(numeric)) return fallback;
+  return numeric;
+}
+
+function formatCurrencyLimit(value: number, noLimitValue: number) {
+  return value >= noLimitValue ? "No limit" : `$${value}`;
 }
 
 export function RulesForm({ config, onSave, saving }: RulesFormProps) {
   const [alwaysAsk, setAlwaysAsk] = useState(config.always_ask ?? true);
   const [perPurchaseLimit, setPerPurchaseLimit] = useState(
-    Number(config.per_purchase_limit ?? 50),
+    normalizeLimitValue(config.per_purchase_limit, 50, PER_PURCHASE_MAX),
   );
-  const [dailyLimit, setDailyLimit] = useState(Number(config.daily_limit ?? 150));
+  const [dailyLimit, setDailyLimit] = useState(
+    normalizeLimitValue(config.daily_limit, 150, DAILY_LIMIT_MAX),
+  );
   const [monthlyLimit, setMonthlyLimit] = useState(
-    Number(config.monthly_limit ?? 500),
+    normalizeLimitValue(config.monthly_limit, 500, MONTHLY_LIMIT_MAX),
   );
   const [numPurchaseLimit, setNumPurchaseLimit] = useState(
-    Number(config.num_purchase_limit ?? 25),
+    normalizeLimitValue(config.num_purchase_limit, 25, WEEKLY_PURCHASE_MAX),
   );
   const [blockedCategoriesText, setBlockedCategoriesText] = useState(
     (config.blocked_categories || []).join(", "),
@@ -105,10 +127,22 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
 
     onSave({
       always_ask: alwaysAsk,
-      per_purchase_limit: fallbackNumber(perPurchaseLimit, 50),
-      daily_limit: fallbackNumber(dailyLimit, 150),
-      monthly_limit: fallbackNumber(monthlyLimit, 500),
-      num_purchase_limit: fallbackNumber(numPurchaseLimit, 25),
+      per_purchase_limit:
+        fallbackNumber(perPurchaseLimit, 50) >= PER_PURCHASE_MAX
+          ? null
+          : fallbackNumber(perPurchaseLimit, 50),
+      daily_limit:
+        fallbackNumber(dailyLimit, 150) >= DAILY_LIMIT_MAX
+          ? null
+          : fallbackNumber(dailyLimit, 150),
+      monthly_limit:
+        fallbackNumber(monthlyLimit, 500) >= MONTHLY_LIMIT_MAX
+          ? null
+          : fallbackNumber(monthlyLimit, 500),
+      num_purchase_limit:
+        fallbackNumber(numPurchaseLimit, 25) >= WEEKLY_PURCHASE_MAX
+          ? null
+          : fallbackNumber(numPurchaseLimit, 25),
       blocked_categories: blockedCategories,
       block_new_merchants: blockNewMerchants,
       block_international: blockInternational,
@@ -132,38 +166,41 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
             label="Per purchase limit"
             value={perPurchaseLimit}
             onChange={setPerPurchaseLimit}
-            min={5}
-            max={500}
+            min={0}
+            max={PER_PURCHASE_MAX}
             step={5}
-            format={(v) => `$${v}`}
+            format={(v) => formatCurrencyLimit(v, PER_PURCHASE_MAX)}
           />
           <Slider
             label="Daily limit"
             value={dailyLimit}
             onChange={setDailyLimit}
-            min={10}
-            max={1000}
+            min={0}
+            max={DAILY_LIMIT_MAX}
             step={10}
-            format={(v) => `$${v}`}
+            format={(v) => formatCurrencyLimit(v, DAILY_LIMIT_MAX)}
           />
           <Slider
             label="Monthly limit"
             value={monthlyLimit}
             onChange={setMonthlyLimit}
-            min={50}
-            max={5000}
+            min={0}
+            max={MONTHLY_LIMIT_MAX}
             step={50}
-            format={(v) => `$${v}`}
+            format={(v) => formatCurrencyLimit(v, MONTHLY_LIMIT_MAX)}
           />
           <Slider
             label="Max purchases per week"
             value={numPurchaseLimit}
             onChange={setNumPurchaseLimit}
-            min={1}
-            max={100}
+            min={0}
+            max={WEEKLY_PURCHASE_MAX}
             step={1}
-            format={(v) => `${v}`}
+            format={(v) => (v >= WEEKLY_PURCHASE_MAX ? "No limit" : `${v}`)}
           />
+          <p className="text-xs text-[#86868b]">
+            Slide all the way right on any limit to set it to no limit.
+          </p>
         </div>
       </section>
 
@@ -197,17 +234,24 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
       </section>
 
       {/* Approval settings */}
-      <section className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-6 space-y-5">
-        <h3 className="text-sm font-semibold text-[#86868b] uppercase tracking-wider">
-          Approval
-        </h3>
-        <Toggle
-          label="Always require approval"
-          description="Every purchase must be manually approved"
-          checked={alwaysAsk}
-          onChange={setAlwaysAsk}
-        />
-        <div>
+      <section className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="px-6 pt-6 pb-3">
+          <h3 className="text-sm font-semibold text-[#86868b] uppercase tracking-wider">
+            Approval
+          </h3>
+        </div>
+        <div className="divide-y divide-black/[0.06]">
+          <div className="mx-4 my-4 rounded-xl bg-[#ff9f0a]/10 border border-[#ff9f0a]/20">
+            <Toggle
+              label="Always require approval"
+              description="Every purchase must be manually approved"
+              checked={alwaysAsk}
+              onChange={setAlwaysAsk}
+            />
+          </div>
+        </div>
+        <div className="p-6 space-y-5">
+          <div>
           <label className="text-sm font-medium mb-2 block">Channel</label>
           <div className="grid grid-cols-3 gap-2">
             {([
@@ -271,30 +315,31 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
               )}
             </div>
           )}
-        </div>
-        <Slider
-          label="Approval timeout"
-          value={approvalTimeout}
-          onChange={setApprovalTimeout}
-          min={60}
-          max={1800}
-          step={60}
-          format={(v) => `${Math.floor(v / 60)} min`}
-        />
-        <div>
-          <label className="text-sm font-medium mb-2 block">
-            Blocked categories
-          </label>
-          <input
-            type="text"
-            value={blockedCategoriesText}
-            onChange={(e) => setBlockedCategoriesText(e.target.value)}
-            placeholder="e.g. gambling, crypto, adult"
-            className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
+          </div>
+          <Slider
+            label="Approval timeout"
+            value={approvalTimeout}
+            onChange={setApprovalTimeout}
+            min={60}
+            max={1800}
+            step={60}
+            format={(v) => `${Math.floor(v / 60)} min`}
           />
-          <p className="text-xs text-[#86868b] mt-2">
-            Comma-separated categories to reject.
-          </p>
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Blocked categories
+            </label>
+            <input
+              type="text"
+              value={blockedCategoriesText}
+              onChange={(e) => setBlockedCategoriesText(e.target.value)}
+              placeholder="e.g. gambling, crypto, adult"
+              className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
+            />
+            <p className="text-xs text-[#86868b] mt-2">
+              Comma-separated categories to reject.
+            </p>
+          </div>
         </div>
       </section>
 

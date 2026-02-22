@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CardPreview } from "@/components/card-preview";
 
 /* ── Scroll-reveal hook ─────────────────────────────────── */
 function useScrollReveal() {
@@ -109,7 +108,10 @@ export default function Home() {
         } bg-white/80 backdrop-blur-xl border-b border-black/5`}
       >
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-3">
-          <img src="/clawbotlogo.png" alt="ClawPay" className="h-7" />
+          <div className="flex items-center gap-2">
+            <img src="/clawbotlogo.png" alt="ClawPay" className="h-7" />
+            <span className="text-base font-semibold text-[#1d1d1f]">ClawPay</span>
+          </div>
           <div className="flex items-center gap-4">
             <Link
               href="/login"
@@ -132,9 +134,15 @@ export default function Home() {
         ref={heroRef}
         className="min-h-screen flex flex-col items-center justify-center px-6 text-center relative"
       >
+        <img
+          src="/clawbotlogo.png"
+          alt="ClawPay"
+          className="h-35 mb-8"
+          style={{ animation: "heroFadeInUp 0.8s ease-out both" }}
+        />
         <h1
           className="text-5xl sm:text-7xl lg:text-8xl font-semibold tracking-tight max-w-4xl leading-[1.05]"
-          style={{ animation: "heroFadeInUp 0.8s ease-out both" }}
+          style={{ animation: "heroFadeInUp 0.8s ease-out 0.1s both" }}
         >
           Payment guardrails
           <br />
@@ -154,7 +162,7 @@ export default function Home() {
 
         <p
           className="mt-6 text-lg sm:text-xl text-[#86868b] max-w-xl leading-relaxed"
-          style={{ animation: "heroFadeInUp 0.8s ease-out 0.15s both" }}
+          style={{ animation: "heroFadeInUp 0.8s ease-out 0.25s both" }}
         >
           Set spending limits, approve purchases in real time, and monitor every
           transaction your autonomous agent makes.
@@ -162,7 +170,7 @@ export default function Home() {
 
         <div
           className="flex flex-wrap justify-center gap-4 mt-8"
-          style={{ animation: "heroFadeInUp 0.8s ease-out 0.3s both" }}
+          style={{ animation: "heroFadeInUp 0.8s ease-out 0.4s both" }}
         >
           <Link
             href="/login"
@@ -202,6 +210,9 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ── 1.5. Quick Install ──────────────────────────── */}
+      <InstallSection />
+
       {/* ── 2. Virtual Card ─────────────────────────────── */}
       <Section
         id="virtual-card"
@@ -220,13 +231,43 @@ export default function Home() {
             className="mt-12 w-full max-w-sm"
             style={{ animation: "cardFloat 6s ease-in-out infinite" }}
           >
-            <CardPreview
-              last4="4242"
-              brand="visa"
-              name="OpenClaw Agent"
-              expMonth="12"
-              expYear="27"
-            />
+            {/* Dashboard-style virtual card */}
+            <div className="relative overflow-hidden aspect-[16/10] rounded-2xl p-6 bg-gradient-to-br from-[#1a1f36] to-[#0a2540] shadow-[0_4px_24px_rgba(10,37,64,0.3)] flex flex-col justify-between">
+              {/* Watermark logo */}
+              <img
+                src="/clawbotlogo.png"
+                alt=""
+                className="absolute right-[-10%] top-1/2 -translate-y-1/2 h-[80%] brightness-0 invert opacity-[0.04] pointer-events-none"
+              />
+              {/* Top row — brand + logo */}
+              <div className="flex items-center justify-between relative z-[1]">
+                <img src="/clawbotlogo.png" alt="ClawPay" className="h-7 brightness-0 invert opacity-80" />
+                <img src="/visa-logo.png" alt="Visa" className="h-5 brightness-0 invert opacity-70" />
+              </div>
+
+              {/* Chip icon */}
+              <div className="w-10 h-7 rounded-md bg-gradient-to-br from-[#d4a853] to-[#c49332]" />
+
+              {/* Balance */}
+              <p className="text-3xl font-semibold tracking-tight text-white">
+                $24.99
+              </p>
+
+              {/* Card number */}
+              <p className="font-mono text-sm text-white/70 tracking-wider">
+                &bull;&bull;&bull;&bull; &nbsp;&bull;&bull;&bull;&bull; &nbsp;&bull;&bull;&bull;&bull; &nbsp;4242
+              </p>
+
+              {/* Bottom row — status */}
+              <div className="flex items-end justify-between">
+                <span className="text-[#ff9f0a] font-semibold text-xs tracking-wide">
+                  PURCHASE IN PROGRESS
+                </span>
+                <span className="text-[11px] text-white/50">
+                  Drains in 4:32
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-wrap justify-center gap-6 mt-12">
@@ -498,6 +539,99 @@ export default function Home() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/* ── Quick Install section ─────────────────────────────── */
+function InstallSection() {
+  const [copied, setCopied] = useState(false);
+  const command = "curl -fsSL https://clawpay.tech/install | bash";
+
+  const copy = () => {
+    navigator.clipboard.writeText(command);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Section className="bg-[#f5f5f7]">
+      <div className="flex flex-col items-center text-center">
+        <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight">
+          One command to install.
+        </h2>
+        <p className="mt-4 text-[#86868b] text-lg max-w-lg">
+          The fastest way to add ClawPay to your OpenClaw setup.{" "}
+          <Link href="/login" className="text-[#0071e3] hover:underline">
+            Create an account
+          </Link>{" "}
+          to get your pairing code, then paste this in your terminal.
+        </p>
+
+        <div className="mt-10 w-full max-w-2xl">
+          <div className="bg-[#1d1d1f] rounded-2xl p-1">
+            {/* Terminal chrome */}
+            <div className="flex items-center gap-2 px-4 py-3">
+              <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+              <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+              <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+              <span className="ml-2 text-xs text-[#86868b]">Terminal</span>
+            </div>
+
+            {/* Command */}
+            <div className="flex items-center justify-between bg-[#2d2d2f] rounded-xl mx-2 mb-2 px-5 py-4">
+              <code className="text-sm sm:text-base text-[#f5f5f7] font-mono truncate mr-4">
+                <span className="text-[#34c759]">$</span>{" "}
+                {command}
+              </code>
+              <button
+                onClick={copy}
+                className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg transition-all bg-white/10 hover:bg-white/20 text-white"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          </div>
+
+          <p className="mt-4 text-sm text-[#86868b]">
+            Then pass your 6-digit pairing code:{" "}
+            <code className="bg-[#e5e5ea] text-[#1d1d1f] px-2 py-0.5 rounded text-xs font-mono">
+              curl -fsSL https://clawpay.tech/install | bash -s -- 483291
+            </code>
+          </p>
+        </div>
+
+        {/* Steps */}
+        <div className="grid sm:grid-cols-3 gap-6 mt-14 w-full max-w-2xl text-left">
+          {[
+            {
+              step: "1",
+              title: "Install",
+              desc: "Clones the plugin and registers it with OpenClaw.",
+            },
+            {
+              step: "2",
+              title: "Pair",
+              desc: "Links your agent to your ClawPay dashboard with a 6-digit code.",
+            },
+            {
+              step: "3",
+              title: "Done",
+              desc: "Restart OpenClaw and your agent has payment guardrails.",
+            },
+          ].map((s) => (
+            <div key={s.step} className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#0071e3] text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                {s.step}
+              </div>
+              <div>
+                <div className="font-semibold text-[#1d1d1f]">{s.title}</div>
+                <div className="text-sm text-[#86868b] mt-0.5">{s.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Section>
   );
 }
 

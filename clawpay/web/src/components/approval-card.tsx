@@ -14,10 +14,43 @@ const statusColors: Record<string, string> = {
   expired: "text-[#aeaeb2] bg-black/[0.04]",
 };
 
+const riskFlagLabels: Record<string, string> = {
+  auto_approved: "Automatically approved",
+  auto_rejected: "Automatically rejected",
+  always_ask: "Always require approval is enabled",
+  new_merchant: "First purchase from this merchant",
+  near_daily_limit: "Near your daily spending limit",
+  blocked_category: "Category is blocked",
+  international: "International purchase",
+  night_pause: "Night pause hours",
+  over_limit: "Over per-purchase limit",
+  daily_limit: "Would exceed daily limit",
+  monthly_limit: "Would exceed monthly limit",
+  velocity_limit: "Weekly purchase count limit reached",
+};
+
+function formatRiskFlag(flag: string): string {
+  return (
+    riskFlagLabels[flag] ||
+    flag
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ")
+  );
+}
+
 export function ApprovalCard({ approval, onResolve }: ApprovalCardProps) {
   const isPending = approval.status === "pending";
   const isExpired =
     isPending && new Date(approval.expires_at) < new Date();
+  const isAutoApproved =
+    Array.isArray(approval.risk_flags) &&
+    approval.risk_flags.length === 1 &&
+    approval.risk_flags[0] === "auto_approved";
+  const isAutoRejected =
+    Array.isArray(approval.risk_flags) &&
+    approval.risk_flags.length === 1 &&
+    approval.risk_flags[0] === "auto_rejected";
 
   const statusKey = isExpired ? "expired" : approval.status;
   const statusStyle = statusColors[statusKey] || "text-[#aeaeb2] bg-black/[0.04]";
@@ -31,16 +64,40 @@ export function ApprovalCard({ approval, onResolve }: ApprovalCardProps) {
             {approval.merchant} &middot; ${Number(approval.amount).toFixed(2)}{" "}
             {approval.currency}
           </p>
-          {approval.risk_flags && approval.risk_flags.length > 0 && (
-            <div className="flex gap-1.5 mt-2">
+          {approval.transaction_id && (
+            <p className="text-xs text-[#86868b] mt-1 font-mono">
+              Transaction ID: {approval.transaction_id}
+            </p>
+          )}
+          {isAutoApproved && (
+            <div className="mt-2">
+              <div className="inline-flex text-xs bg-[#34c759]/10 text-[#34c759] px-2 py-0.5 rounded-full font-medium">
+                Automatically approved
+              </div>
+            </div>
+          )}
+          {isAutoRejected && (
+            <div className="mt-2">
+              <div className="inline-flex text-xs bg-[#ff3b30]/10 text-[#ff3b30] px-2 py-0.5 rounded-full font-medium">
+                Automatically rejected
+              </div>
+            </div>
+          )}
+          {!isAutoApproved && !isAutoRejected && approval.risk_flags && approval.risk_flags.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs mb-1">
+                <span className="font-medium text-[#5f5f64]">Manual review</span>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
               {approval.risk_flags.map((flag) => (
                 <span
                   key={flag}
                   className="text-xs bg-[#ff9f0a]/10 text-[#ff9f0a] px-2 py-0.5 rounded-full font-medium"
                 >
-                  {flag}
+                  {formatRiskFlag(flag)}
                 </span>
               ))}
+              </div>
             </div>
           )}
           <p className="text-xs text-[#aeaeb2] mt-2">

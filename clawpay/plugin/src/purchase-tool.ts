@@ -1,12 +1,9 @@
 import { Type } from "@sinclair/typebox";
 import type { ClawPayClient } from "./supabase-client.js";
-import type { PurchaseToolInput } from "./types.js";
-import { buildCdpInjectionPayload } from "./cdp-inject.js";
 
 export function createPurchaseTool(client: ClawPayClient) {
   return {
     name: "clawpay_purchase",
-    label: "ClawPay Purchase",
     description:
       "Execute a purchase through ClawPay. Evaluates spending rules, obtains approval if needed, " +
       "and tops up the persistent virtual card. On success, returns a CDP injection payload that fills " +
@@ -16,53 +13,29 @@ export function createPurchaseTool(client: ClawPayClient) {
       "The browser should already be on the checkout/payment page. " +
       "After checkout completes (success or failure), you MUST call clawpay_complete.",
     parameters: Type.Object({
-      item: Type.String({ description: "Name/description of the item being purchased" }),
-      amount: Type.Number({ description: "Price in the specified currency (e.g. 49.99)" }),
-      currency: Type.String({
-        description: "ISO currency code (for example: USD)",
-      }),
-      userConfirmed: Type.Boolean({
-        description:
-          "Must be true only after explicit user confirmation of item + amount + merchant",
-      }),
-      merchant: Type.String({ description: "Name of the merchant/store" }),
+      item: Type.String({ description: "What is being purchased" }),
+      amount: Type.Number({ description: "Total price" }),
+      currency: Type.Optional(
+        Type.String({ description: "ISO currency code", default: "USD" }),
+      ),
+      merchant: Type.String({ description: "Merchant / store name" }),
       merchant_url: Type.Optional(
-        Type.String({ description: "URL of the product or merchant" }),
+        Type.String({ description: "Merchant URL" }),
       ),
       category: Type.Optional(
-        Type.String({
-          description:
-            "Product category (e.g. clothing, electronics, food, entertainment)",
-        }),
+        Type.String({ description: "Spending category" }),
       ),
       international: Type.Optional(
         Type.Boolean({
-          description: "Whether the merchant is international (non-domestic)",
+          description: "Is this an international purchase?",
+          default: false,
         }),
       ),
+      userConfirmed: Type.Boolean({
+        description:
+          "Must be true — agent has confirmed with the user that they want to buy",
+      }),
     }),
-    async execute(_id: string, params: Record<string, unknown>) {
-      if (!client.isPaired) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "ClawPay is not paired in this gateway instance. Ask the user to generate a pairing code in the ClawPay dashboard and run /clawpay-pair <code>.",
-            },
-          ],
-        };
-      }
-
-      const input: PurchaseToolInput = {
-        item: String(params.item || ""),
-        amount: Number(params.amount),
-        currency: String(params.currency || ""),
-        userConfirmed: params.userConfirmed === true,
-        merchant: String(params.merchant || ""),
-        merchant_url: params.merchant_url ? String(params.merchant_url) : undefined,
-        category: params.category ? String(params.category) : undefined,
-        international: params.international === true,
-      };
 
       const normalized = {
         item: input.item.trim(),
@@ -96,12 +69,7 @@ export function createPurchaseTool(client: ClawPayClient) {
 
       if (!normalized.userConfirmed) {
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Purchase blocked: userConfirmed must be true before calling clawpay_purchase.",
-            },
-          ],
+          error: "ClawPay is not paired. Run /clawpay-pair <code> first.",
         };
       }
 
@@ -187,7 +155,7 @@ export function createPurchaseTool(client: ClawPayClient) {
           };
         }
 
-        // rejected
+      if (result.status === "approved") {
         return {
           content: [
             {
@@ -211,33 +179,23 @@ export function createPurchaseTool(client: ClawPayClient) {
             },
           },
         };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        const lower = message.toLowerCase();
-        const authIssue =
-          lower.includes("authentication failed") ||
-          lower.includes("401") ||
-          lower.includes("pair again") ||
-          lower.includes("not paired");
+      }
 
-        const text = authIssue
-          ? [
-              `ClawPay purchase failed: ${message}`,
-              "",
-              "Pairing may be expired or missing in this runtime.",
-              "Recovery: generate a new 6-digit pairing code and run /clawpay-pair <code>, then retry.",
-            ].join("\n")
-          : `ClawPay purchase failed: ${message}`;
-
+      if (result.status === "pending_approval") {
         return {
-          content: [
-            {
-              type: "text" as const,
-              text,
-            },
-          ],
+          status: "pending_approval",
+          approval_id: result.approval_id,
+          expires_at: result.expires_at,
+          message:
+            "Purchase requires user approval. Waiting for the user to approve or reject.",
         };
       }
+
+      return {
+        status: "rejected",
+        reason: result.reason,
+        message: `Purchase rejected: ${result.reason}`,
+      };
     },
   };
 }

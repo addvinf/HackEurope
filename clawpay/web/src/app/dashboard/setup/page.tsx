@@ -6,6 +6,10 @@ import type { Card } from "@/lib/types";
 import { CardPreview, CardInputFields } from "@/components/card-preview";
 
 const TELEGRAM_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "ClawPayBot";
+const PER_PURCHASE_MAX = 500;
+const DAILY_LIMIT_MAX = 1000;
+const MONTHLY_LIMIT_MAX = 5000;
+const WEEKLY_PURCHASE_MAX = 100;
 
 /* ── Step definitions ── */
 type Step =
@@ -75,12 +79,14 @@ function LimitSlider({
   min,
   max,
   step,
+  noLimitAtMax = false,
 }: {
   value: number;
   onChange: (v: number) => void;
   min: number;
   max: number;
   step: number;
+  noLimitAtMax?: boolean;
 }) {
   const percent = ((value - min) / (max - min)) * 100;
   const [bounce, setBounce] = useState(false);
@@ -102,7 +108,7 @@ function LimitSlider({
           bounce ? "scale-105" : "scale-100"
         }`}
       >
-        ${value}
+        {noLimitAtMax && value >= max ? "No limit" : `$${value}`}
       </span>
       <div className="w-full max-w-md">
         <div className="relative h-7 flex items-center">
@@ -128,7 +134,7 @@ function LimitSlider({
         </div>
         <div className="flex justify-between mt-2 text-xs text-[#86868b]">
           <span>${min}</span>
-          <span>${max}</span>
+          <span>{noLimitAtMax ? "No limit" : `$${max}`}</span>
         </div>
       </div>
     </div>
@@ -285,10 +291,22 @@ export default function SetupPage() {
       const cfg = configRes.data as Record<string, unknown> | null;
       if (cfg) {
         setAlwaysAsk(Boolean(cfg.always_ask ?? true));
-        setPerPurchaseLimit(Number(cfg.per_purchase_limit ?? 50));
-        setDailyLimit(Number(cfg.daily_limit ?? 150));
-        setMonthlyLimit(Number(cfg.monthly_limit ?? 500));
-        setNumPurchaseLimit(Number(cfg.num_purchase_limit ?? 25));
+        const rawPerPurchase = cfg.per_purchase_limit;
+        const rawDaily = cfg.daily_limit;
+        const rawMonthly = cfg.monthly_limit;
+        const rawWeekly = cfg.num_purchase_limit;
+        const perPurchaseValue =
+          rawPerPurchase === null ? PER_PURCHASE_MAX : Number(rawPerPurchase ?? 50);
+        const dailyValue =
+          rawDaily === null ? DAILY_LIMIT_MAX : Number(rawDaily ?? 150);
+        const monthlyValue =
+          rawMonthly === null ? MONTHLY_LIMIT_MAX : Number(rawMonthly ?? 500);
+        const weeklyValue =
+          rawWeekly === null ? WEEKLY_PURCHASE_MAX : Number(rawWeekly ?? 25);
+        setPerPurchaseLimit(perPurchaseValue);
+        setDailyLimit(dailyValue);
+        setMonthlyLimit(monthlyValue);
+        setNumPurchaseLimit(weeklyValue);
         setBlockedCategoriesText(
           Array.isArray(cfg.blocked_categories)
             ? (cfg.blocked_categories as string[]).join(", ")
@@ -444,10 +462,10 @@ export default function SetupPage() {
       {
         user_id: user.id,
         always_ask: alwaysAsk,
-        per_purchase_limit: perPurchaseLimit,
-        daily_limit: dailyLimit,
-        monthly_limit: monthlyLimit,
-        num_purchase_limit: numPurchaseLimit,
+        per_purchase_limit: perPurchaseLimit >= PER_PURCHASE_MAX ? null : perPurchaseLimit,
+        daily_limit: dailyLimit >= DAILY_LIMIT_MAX ? null : dailyLimit,
+        monthly_limit: monthlyLimit >= MONTHLY_LIMIT_MAX ? null : monthlyLimit,
+        num_purchase_limit: numPurchaseLimit >= WEEKLY_PURCHASE_MAX ? null : numPurchaseLimit,
         blocked_categories: blockedCategories,
         block_new_merchants: blockNewMerchants,
         block_international: blockInternational,
@@ -635,9 +653,10 @@ export default function SetupPage() {
             <LimitSlider
               value={perPurchaseLimit}
               onChange={setPerPurchaseLimit}
-              min={5}
-              max={500}
+              min={0}
+              max={PER_PURCHASE_MAX}
               step={5}
+              noLimitAtMax
             />
             {continueButton()}
           </div>
@@ -658,9 +677,10 @@ export default function SetupPage() {
             <LimitSlider
               value={dailyLimit}
               onChange={setDailyLimit}
-              min={10}
-              max={1000}
+              min={0}
+              max={DAILY_LIMIT_MAX}
               step={10}
+              noLimitAtMax
             />
             {continueButton()}
           </div>
@@ -681,9 +701,10 @@ export default function SetupPage() {
             <LimitSlider
               value={monthlyLimit}
               onChange={setMonthlyLimit}
-              min={50}
-              max={5000}
+              min={0}
+              max={MONTHLY_LIMIT_MAX}
               step={50}
+              noLimitAtMax
             />
             <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-6 space-y-4">
               <div className="flex justify-between text-sm">
@@ -691,13 +712,13 @@ export default function SetupPage() {
                   Max purchases per week
                 </span>
                 <span className="text-[#0071e3] font-semibold tabular-nums">
-                  {numPurchaseLimit}
+                  {numPurchaseLimit >= WEEKLY_PURCHASE_MAX ? "No limit" : numPurchaseLimit}
                 </span>
               </div>
               <input
                 type="range"
-                min={1}
-                max={100}
+                min={0}
+                max={WEEKLY_PURCHASE_MAX}
                 step={1}
                 value={numPurchaseLimit}
                 onChange={(e) => setNumPurchaseLimit(Number(e.target.value))}

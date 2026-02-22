@@ -9,6 +9,20 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
+  // Supabase redirects auth errors (e.g. expired OTP) to the site root with
+  // ?error=...&error_description=... — catch these and send to /login with a message.
+  const authError = request.nextUrl.searchParams.get("error_description");
+  if (authError && request.nextUrl.pathname === "/") {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.delete("error");
+    loginUrl.searchParams.delete("error_code");
+    loginUrl.searchParams.delete("error_description");
+    loginUrl.searchParams.set("message", authError);
+    loginUrl.hash = "";
+    return NextResponse.redirect(loginUrl);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(

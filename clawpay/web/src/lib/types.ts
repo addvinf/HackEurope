@@ -15,10 +15,10 @@ export interface Config {
   id: string;
   user_id: string;
   always_ask: boolean;
-  per_purchase_limit: number;
-  daily_limit: number;
-  monthly_limit: number;
-  num_purchase_limit: number;
+  per_purchase_limit: number | null;
+  daily_limit: number | null;
+  monthly_limit: number | null;
+  num_purchase_limit: number | null;
   blocked_categories: string[];
   allowed_categories: string[];
   approval_channel: string;
@@ -51,6 +51,7 @@ export interface Approval {
   id: string;
   user_id: string;
   token: string;
+  transaction_id?: string | null;
   item: string;
   amount: number;
   currency: string;

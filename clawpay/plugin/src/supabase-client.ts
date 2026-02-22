@@ -1,151 +1,166 @@
-import type {
-  PurchaseRequest,
-  PurchaseResult,
-  UserConfig,
-  ApproveRequest,
-  ApproveResult,
-  VirtualCardDetails,
-  DrainRequest,
-  DrainResponse,
-} from "./types.js";
-
 /**
- * HTTP client for the ClawPay website API.
- * All calls are authenticated via the pairing token.
+ * ClawPay API client — talks to the ClawPay server over HTTPS.
+ *
+ * Despite the filename (kept for historical reasons), this is a plain
+ * fetch-based HTTP client — Supabase is only on the server side.
  */
-export class ClawPayClient {
-  constructor(
-    private apiUrl: string,
-    private apiToken: string,
-  ) {}
 
-  get isPaired(): boolean {
-    return !!this.apiToken;
-  }
+export interface ClawPayClient {
+  isPaired: boolean;
+  apiUrl: string;
 
-  setToken(token: string) {
-    this.apiToken = token;
-  }
+  pair(code: string): Promise<{ api_token: string; user_id: string }>;
+  setToken(token: string): void;
 
-  private async request<T>(
-    path: string,
-    options: RequestInit = {},
-  ): Promise<T> {
-    const url = `${this.apiUrl.replace(/\/$/, "")}${path}`;
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiToken}`,
-        ...options.headers,
-      },
-    });
-
-    if (!res.ok) {
-      const body = await res
-        .json()
-        .catch(() => ({ error: res.statusText })) as { error?: string };
-      const apiError = body.error || res.statusText;
-
-      if (res.status === 401) {
-        throw new Error(
-          `Authentication failed (401): ${apiError}. Pair again with /clawpay-pair <code>.`,
-        );
-      }
-      if (res.status === 400) {
-        throw new Error(`Request rejected (400): ${apiError}`);
-      }
-      if (res.status >= 500) {
-        throw new Error(`ClawPay API unavailable (${res.status}): ${apiError}`);
-      }
-      throw new Error(`ClawPay API error (${res.status}): ${apiError}`);
-    }
-
-    return res.json() as Promise<T>;
-  }
-
-  /**
-   * Exchange a 6-digit pairing code for an API token.
-   */
-  async pair(code: string): Promise<{ api_token: string; user_id: string }> {
-    const url = `${this.apiUrl.replace(/\/$/, "")}/api/pair`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
-    });
-
-    if (!res.ok) {
-      const body = await res
-        .json()
-        .catch(() => ({ error: res.statusText })) as { error?: string };
-      const apiError = body.error || res.statusText;
-      if (res.status === 400 || res.status === 401) {
-        throw new Error(`Pairing failed: ${apiError}`);
-      }
-      if (res.status >= 500) {
-        throw new Error(`Pairing backend unavailable (${res.status}): ${apiError}`);
-      }
-      throw new Error(`Pairing API error (${res.status}): ${apiError}`);
-    }
-
-    return res.json() as Promise<{ api_token: string; user_id: string }>;
-  }
-
-  /**
-   * Fetch user's spending rules / config.
-   */
-  async getConfig(): Promise<UserConfig> {
-    return this.request<UserConfig>("/api/config");
-  }
-
-  /**
-   * Submit a purchase attempt. Returns auto-approved, pending approval, or rejected.
-   */
-  async purchase(req: PurchaseRequest): Promise<PurchaseResult> {
-    return this.request<PurchaseResult>("/api/purchase", {
-      method: "POST",
-      body: JSON.stringify(req),
-    });
-  }
-
-  /**
-   * Approve or reject a pending purchase.
-   */
-  async resolveApproval(req: ApproveRequest): Promise<ApproveResult> {
-    return this.request<ApproveResult>("/api/approve", {
-      method: "POST",
-      body: JSON.stringify(req),
-    });
-  }
-
-  /**
-   * Fetch persistent card details for CDP injection.
-   * Only succeeds while an active top-up session exists (card is funded).
-   *
-   * SECURITY: The returned data contains the full card number, CVC, etc.
-   * It must NEVER be passed to the LLM context. The plugin uses this
-   * data exclusively with CDP Runtime.evaluate to fill checkout forms.
-   */
-  async getCardDetails(): Promise<VirtualCardDetails> {
-    return this.request<VirtualCardDetails>("/api/card-details");
-  }
-
-  /**
-   * Drain the persistent card back to $0 after checkout.
-   * Called by the clawpay_complete tool.
-   */
-  async drain(req: DrainRequest): Promise<DrainResponse> {
-    return this.request<DrainResponse>("/api/drain", {
-      method: "POST",
-      body: JSON.stringify(req),
-    });
-  }
+  purchase(req: PurchaseInput): Promise<PurchaseResponse>;
+  complete(topupId: string, success: boolean): Promise<DrainResponse>;
+  approve(approved: boolean): Promise<ApproveResponse>;
+  getConfig(): Promise<ConfigResponse>;
+  getCardDetails(): Promise<CardDetailsResponse>;
 }
+
+export interface PurchaseInput {
+  item: string;
+  amount: number;
+  currency?: string;
+  merchant: string;
+  merchant_url?: string;
+  category?: string;
+  international?: boolean;
+  userConfirmed?: boolean;
+}
+
+export interface CardDetails {
+  card_id: string;
+  number: string;
+  exp_month: string;
+  exp_year: string;
+  cvc: string;
+  brand: string;
+  spending_limit: number;
+  currency: string;
+}
+
+export type PurchaseResponse =
+  | {
+      status: "approved";
+      transaction_id: string;
+      topup_id: string;
+      card_last4: string;
+      card: CardDetails;
+    }
+  | { status: "pending_approval"; approval_id: string; expires_at: string }
+  | { status: "rejected"; reason: string }
+  | { error: string };
+
+export interface DrainResponse {
+  status?: string;
+  drained_amount?: number;
+  reason?: string;
+  error?: string;
+}
+
+export type ApproveResponse =
+  | {
+      status: "approved";
+      transaction_id: string;
+      topup_id: string;
+      card_last4: string;
+      card: CardDetails;
+      amount?: number;
+    }
+  | { status: "rejected" }
+  | { error: string };
+
+export interface ConfigResponse {
+  always_ask?: boolean;
+  per_purchase_limit?: number;
+  daily_limit?: number;
+  monthly_limit?: number;
+  num_purchase_limit?: number;
+  blocked_categories?: string[];
+  allowed_categories?: string[];
+  approval_channel?: string;
+  telegram_chat_id?: string | null;
+  approval_timeout_seconds?: number;
+  block_new_merchants?: boolean;
+  block_international?: boolean;
+  night_pause?: boolean;
+  send_receipts?: boolean;
+  weekly_summary?: boolean;
+  error?: string;
+}
+
+export interface CardDetailsResponse {
+  card_id?: string;
+  number?: string;
+  exp_month?: string;
+  exp_year?: string;
+  cvc?: string;
+  brand?: string;
+  spending_limit?: number;
+  currency?: string;
+  error?: string;
+}
+
+// ── Implementation ──────────────────────────────────────────────────────────
 
 export function createClawPayClient(
   apiUrl: string,
   apiToken: string,
 ): ClawPayClient {
-  return new ClawPayClient(apiUrl || "https://clawpay.tech", apiToken || "");
+  let token = apiToken;
+
+  async function post<T>(path: string, body: unknown): Promise<T> {
+    const res = await fetch(`${apiUrl}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    return res.json() as Promise<T>;
+  }
+
+  async function get<T>(path: string): Promise<T> {
+    const res = await fetch(`${apiUrl}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return res.json() as Promise<T>;
+  }
+
+  return {
+    get isPaired() {
+      return !!token;
+    },
+
+    apiUrl,
+
+    setToken(newToken: string) {
+      token = newToken;
+    },
+
+    async pair(code: string) {
+      const res = await fetch(`${apiUrl}/api/pair`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || `Pairing failed (HTTP ${res.status})`);
+      }
+      const data = (await res.json()) as { api_token: string; user_id: string };
+      token = data.api_token;
+      return data;
+    },
+
+    purchase: (req) => post<PurchaseResponse>("/api/purchase", req),
+    complete: (topupId, success) =>
+      post<DrainResponse>("/api/drain", { topup_id: topupId, success }),
+    approve: (approved) => post<ApproveResponse>("/api/approve", { approved }),
+    getConfig: () => get<ConfigResponse>("/api/config"),
+    getCardDetails: () => get<CardDetailsResponse>("/api/card-details"),
+  };
 }

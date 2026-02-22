@@ -7,16 +7,22 @@ import type { PurchaseRequest, PurchaseResult } from "@/lib/types";
 
 interface RulesConfig {
   always_ask: boolean;
-  per_purchase_limit: number;
-  daily_limit: number;
-  num_purchase_limit: number;
+  per_purchase_limit: number | null;
+  daily_limit: number | null;
+  num_purchase_limit: number | null;
   num_purchases: number;
-  monthly_limit: number;
+  monthly_limit: number | null;
   blocked_categories: string[];
   block_new_merchants: boolean;
   block_international: boolean;
   night_pause: boolean;
   approval_timeout_seconds: number;
+}
+
+function parseLimitOrDefault(value: unknown, fallback: number): number | null {
+  if (value === null) return null;
+  const numeric = Number(value ?? fallback);
+  return Number.isFinite(numeric) ? numeric : fallback;
 }
 
 /**
@@ -46,6 +52,22 @@ function evaluateRules(
   isKnownMerchant: boolean,
 ): { action: "auto_approve" | "needs_approval" | "reject"; reason?: string; riskFlags: string[] } {
   const riskFlags: string[] = [];
+  const effectivePerPurchaseLimit =
+    config.per_purchase_limit === null
+      ? Number.POSITIVE_INFINITY
+      : Number(config.per_purchase_limit);
+  const dailyLimit =
+    config.daily_limit === null
+      ? Number.POSITIVE_INFINITY
+      : Number(config.daily_limit);
+  const monthlyLimit =
+    config.monthly_limit === null
+      ? Number.POSITIVE_INFINITY
+      : Number(config.monthly_limit);
+  const weeklyPurchaseLimit =
+    config.num_purchase_limit === null
+      ? Number.POSITIVE_INFINITY
+      : Number(config.num_purchase_limit);
 
   // 1. Blocked category → hard reject
   if (
@@ -82,16 +104,15 @@ function evaluateRules(
   }
 
   // 4. Amount > per_purchase_limit → hard reject
-  if (purchase.amount > Number(config.per_purchase_limit)) {
+  if (purchase.amount > effectivePerPurchaseLimit) {
     return {
       action: "reject",
-      reason: `Amount $${purchase.amount} exceeds per-purchase limit of $${config.per_purchase_limit}`,
+      reason: `Amount $${purchase.amount} exceeds per-purchase limit of $${effectivePerPurchaseLimit}`,
       riskFlags: ["over_limit"],
     };
   }
 
   // 5. Today's spend + amount > daily_limit → hard reject
-  const dailyLimit = Number(config.daily_limit);
   if (todaySpent + purchase.amount > dailyLimit) {
     return {
       action: "reject",
@@ -101,20 +122,20 @@ function evaluateRules(
   }
 
   // 6. Month spend + amount > monthly_limit → hard reject
-  if (monthSpent + purchase.amount > Number(config.monthly_limit)) {
+  if (monthSpent + purchase.amount > monthlyLimit) {
     return {
       action: "reject",
-      reason: `Would exceed monthly limit of $${config.monthly_limit}`,
+      reason: `Would exceed monthly limit of $${monthlyLimit}`,
       riskFlags: ["monthly_limit"],
     };
   }
 
 
   // 7. Exceeded max purchases per week → hard reject
-  if (config.num_purchases >= config.num_purchase_limit) {
+  if (config.num_purchases >= weeklyPurchaseLimit) {
     return {
       action: "reject",
-      reason: `Exceeded maximum purchases per week (${config.num_purchase_limit})`,
+      reason: `Exceeded maximum purchases per week (${weeklyPurchaseLimit})`,
       riskFlags: ["velocity_limit"],
     };
   }
@@ -139,7 +160,7 @@ function evaluateRules(
   }
 
   // 3. Within 20% of daily limit → requires approval
-  if (todaySpent + purchase.amount > dailyLimit * 0.8) {
+  if (Number.isFinite(dailyLimit) && todaySpent + purchase.amount > dailyLimit * 0.8) {
     riskFlags.push("near_daily_limit");
     return {
       action: "needs_approval",
@@ -267,20 +288,33 @@ export async function POST(request: NextRequest) {
     );
     const weeklyPurchaseCount = (todayTxnsRes.data || []).length;
 
+    const configRow = config as {
+      always_ask?: unknown;
+      per_purchase_limit?: unknown;
+      daily_limit?: unknown;
+      num_purchase_limit?: unknown;
+      monthly_limit?: unknown;
+      blocked_categories?: unknown;
+      block_new_merchants?: unknown;
+      block_international?: unknown;
+      night_pause?: unknown;
+      approval_timeout_seconds?: unknown;
+    } | null;
+
     const rules: RulesConfig = {
-      always_ask: Boolean((config as { always_ask?: unknown } | null)?.always_ask ?? true),
-      per_purchase_limit: Number((config as { per_purchase_limit?: unknown } | null)?.per_purchase_limit ?? 50),
-      daily_limit: Number((config as { daily_limit?: unknown } | null)?.daily_limit ?? 150),
-      num_purchase_limit: Number((config as { num_purchase_limit?: unknown } | null)?.num_purchase_limit ?? 25),
+      always_ask: Boolean(configRow?.always_ask ?? true),
+      per_purchase_limit: parseLimitOrDefault(configRow?.per_purchase_limit, 50),
+      daily_limit: parseLimitOrDefault(configRow?.daily_limit, 150),
+      num_purchase_limit: parseLimitOrDefault(configRow?.num_purchase_limit, 25),
       num_purchases: weeklyPurchaseCount,
-      monthly_limit: Number((config as { monthly_limit?: unknown } | null)?.monthly_limit ?? 500),
-      blocked_categories: Array.isArray((config as { blocked_categories?: unknown } | null)?.blocked_categories)
-        ? ((config as { blocked_categories: string[] }).blocked_categories)
+      monthly_limit: parseLimitOrDefault(configRow?.monthly_limit, 500),
+      blocked_categories: Array.isArray(configRow?.blocked_categories)
+        ? (configRow.blocked_categories as string[])
         : [],
-      block_new_merchants: Boolean((config as { block_new_merchants?: unknown } | null)?.block_new_merchants ?? true),
-      block_international: Boolean((config as { block_international?: unknown } | null)?.block_international ?? false),
-      night_pause: Boolean((config as { night_pause?: unknown } | null)?.night_pause ?? false),
-      approval_timeout_seconds: Number((config as { approval_timeout_seconds?: unknown } | null)?.approval_timeout_seconds ?? 300),
+      block_new_merchants: Boolean(configRow?.block_new_merchants ?? true),
+      block_international: Boolean(configRow?.block_international ?? false),
+      night_pause: Boolean(configRow?.night_pause ?? false),
+      approval_timeout_seconds: Number(configRow?.approval_timeout_seconds ?? 300),
     };
 
     // Check if merchant is known

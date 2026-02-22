@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const urlMessage = searchParams.get("message");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(urlMessage);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
@@ -51,65 +54,86 @@ export default function LoginPage() {
   }
 
   return (
+    <div className="w-[40vw] bg-white rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.08)] p-10">
+      <h2 className="text-xl font-semibold mb-6 text-center">
+        {isSignUp ? "Create your account" : "Sign in"}
+      </h2>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] placeholder-[#aeaeb2] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={6}
+          className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] placeholder-[#aeaeb2] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
+        />
+
+        {!isSignUp && (
+          <div className="text-right -mt-2">
+            <Link
+              href="/forgot-password"
+              className="text-[#0071e3] hover:text-[#0077ed] text-sm font-medium"
+            >
+              Forgot password?
+            </Link>
+          </div>
+        )}
+
+        {error && (
+          <p className="text-[#ff3b30] text-sm">{error}</p>
+        )}
+        {message && (
+          <p className="text-[#34c759] text-sm">{message}</p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-[#0071e3] hover:bg-[#0077ed] disabled:opacity-50 text-white font-medium py-3 rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99]"
+        >
+          {loading ? "Loading..." : isSignUp ? "Sign up" : "Sign in"}
+        </button>
+      </form>
+
+      <p className="text-center text-[#86868b] text-sm mt-6">
+        {isSignUp ? "Already have an account?" : "Don\u2019t have an account?"}{" "}
+        <button
+          onClick={() => {
+            setIsSignUp(!isSignUp);
+            setError(null);
+            setMessage(null);
+          }}
+          className="text-[#0071e3] hover:text-[#0077ed] font-medium"
+        >
+          {isSignUp ? "Sign in" : "Sign up"}
+        </button>
+      </p>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] flex flex-col items-center justify-center px-4">
-      <Link href="/" className="mb-10">
-        <img src="/clawbotlogo.png" alt="ClawPay" className="h-10" />
+      <Link href="/" className="mb-10" style={{ animation: 'authFadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
+        <img src="/clawbotlogo.png" alt="ClawPay" className="h-16" />
       </Link>
 
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.08)] p-8">
-        <h2 className="text-xl font-semibold mb-6 text-center">
-          {isSignUp ? "Create your account" : "Sign in"}
-        </h2>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] placeholder-[#aeaeb2] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="w-full px-4 py-3 bg-[#f5f5f7] border border-transparent rounded-xl text-[#1d1d1f] placeholder-[#aeaeb2] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all"
-          />
-
-          {error && (
-            <p className="text-[#ff3b30] text-sm">{error}</p>
-          )}
-          {message && (
-            <p className="text-[#34c759] text-sm">{message}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#0071e3] hover:bg-[#0077ed] disabled:opacity-50 text-white font-medium py-3 rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99]"
-          >
-            {loading ? "Loading..." : isSignUp ? "Sign up" : "Sign in"}
-          </button>
-        </form>
-
-        <p className="text-center text-[#86868b] text-sm mt-6">
-          {isSignUp ? "Already have an account?" : "Don\u2019t have an account?"}{" "}
-          <button
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError(null);
-              setMessage(null);
-            }}
-            className="text-[#0071e3] hover:text-[#0077ed] font-medium"
-          >
-            {isSignUp ? "Sign in" : "Sign up"}
-          </button>
-        </p>
-      </div>
+      <Suspense>
+        <div style={{ animation: 'authFadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both' }}>
+          <LoginForm />
+        </div>
+      </Suspense>
     </div>
   );
 }
