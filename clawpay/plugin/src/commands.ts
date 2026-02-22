@@ -5,7 +5,7 @@ import type { ClawPayClient } from "./supabase-client.js";
 
 export function createSpendingCommand(client: ClawPayClient) {
   return {
-    name: "/spending",
+    name: "spending",
     description: "Show your current ClawPay spending rules",
     async handler(_ctx: PluginCommandContext) {
       if (!client.isPaired) {
@@ -47,7 +47,7 @@ export function createPairCommand(
   onPaired: (token: string) => Promise<void>,
 ) {
   return {
-    name: "/clawpay-pair",
+    name: "clawpay-pair",
     description: "Pair ClawPay with a 6-digit code from your dashboard",
     acceptsArgs: true,
     async handler(ctx: PluginCommandContext) {
@@ -72,7 +72,7 @@ export function createPairCommand(
 
 export function createDebugCommand(client: ClawPayClient, apiUrl: string) {
   return {
-    name: "/clawpay-debug",
+    name: "clawpay-debug",
     description: "Show ClawPay pairing and connection status",
     async handler(_ctx: PluginCommandContext) {
       const lines = [
@@ -106,7 +106,7 @@ export function createDebugCommand(client: ClawPayClient, apiUrl: string) {
 
 export function createTestBuyCommand(client: ClawPayClient) {
   return {
-    name: "/clawpay-testbuy",
+    name: "clawpay-testbuy",
     description:
       "Test a purchase: /clawpay-testbuy <amount> <currency> <merchant> <item>",
     acceptsArgs: true,
