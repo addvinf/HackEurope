@@ -31,10 +31,10 @@ export type PurchaseResult =
 
 export interface UserConfig {
   always_ask: boolean;
-  per_purchase_limit: number;
-  daily_limit: number;
-  monthly_limit: number;
-  num_purchase_limit: number;
+  per_purchase_limit: number | null;
+  daily_limit: number | null;
+  monthly_limit: number | null;
+  num_purchase_limit: number | null;
   blocked_categories: string[];
   allowed_categories: string[];
   approval_channel: string;

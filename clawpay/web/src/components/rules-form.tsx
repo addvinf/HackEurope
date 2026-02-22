@@ -12,25 +12,43 @@ interface RulesFormProps {
   saving: boolean;
 }
 
+const PER_PURCHASE_MAX = 500;
+const DAILY_LIMIT_MAX = 1000;
+const MONTHLY_LIMIT_MAX = 5000;
+const WEEKLY_PURCHASE_MAX = 100;
+
 function fallbackNumber(value: number, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
 }
 
-function formatCurrencyLimit(value: number) {
-  return value === 0 ? "No limit" : `$${value}`;
+function normalizeLimitValue(
+  value: number | null | undefined,
+  fallback: number,
+  noLimitValue: number,
+) {
+  if (value === null) return noLimitValue;
+  const numeric = Number(value ?? fallback);
+  if (!Number.isFinite(numeric)) return fallback;
+  return numeric;
+}
+
+function formatCurrencyLimit(value: number, noLimitValue: number) {
+  return value >= noLimitValue ? "No limit" : `$${value}`;
 }
 
 export function RulesForm({ config, onSave, saving }: RulesFormProps) {
   const [alwaysAsk, setAlwaysAsk] = useState(config.always_ask ?? true);
   const [perPurchaseLimit, setPerPurchaseLimit] = useState(
-    Number(config.per_purchase_limit ?? 50),
+    normalizeLimitValue(config.per_purchase_limit, 50, PER_PURCHASE_MAX),
   );
-  const [dailyLimit, setDailyLimit] = useState(Number(config.daily_limit ?? 150));
+  const [dailyLimit, setDailyLimit] = useState(
+    normalizeLimitValue(config.daily_limit, 150, DAILY_LIMIT_MAX),
+  );
   const [monthlyLimit, setMonthlyLimit] = useState(
-    Number(config.monthly_limit ?? 500),
+    normalizeLimitValue(config.monthly_limit, 500, MONTHLY_LIMIT_MAX),
   );
   const [numPurchaseLimit, setNumPurchaseLimit] = useState(
-    Number(config.num_purchase_limit ?? 25),
+    normalizeLimitValue(config.num_purchase_limit, 25, WEEKLY_PURCHASE_MAX),
   );
   const [blockedCategoriesText, setBlockedCategoriesText] = useState(
     (config.blocked_categories || []).join(", "),
@@ -109,10 +127,22 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
 
     onSave({
       always_ask: alwaysAsk,
-      per_purchase_limit: fallbackNumber(perPurchaseLimit, 50),
-      daily_limit: fallbackNumber(dailyLimit, 150),
-      monthly_limit: fallbackNumber(monthlyLimit, 500),
-      num_purchase_limit: fallbackNumber(numPurchaseLimit, 25),
+      per_purchase_limit:
+        fallbackNumber(perPurchaseLimit, 50) >= PER_PURCHASE_MAX
+          ? null
+          : fallbackNumber(perPurchaseLimit, 50),
+      daily_limit:
+        fallbackNumber(dailyLimit, 150) >= DAILY_LIMIT_MAX
+          ? null
+          : fallbackNumber(dailyLimit, 150),
+      monthly_limit:
+        fallbackNumber(monthlyLimit, 500) >= MONTHLY_LIMIT_MAX
+          ? null
+          : fallbackNumber(monthlyLimit, 500),
+      num_purchase_limit:
+        fallbackNumber(numPurchaseLimit, 25) >= WEEKLY_PURCHASE_MAX
+          ? null
+          : fallbackNumber(numPurchaseLimit, 25),
       blocked_categories: blockedCategories,
       block_new_merchants: blockNewMerchants,
       block_international: blockInternational,
@@ -137,39 +167,39 @@ export function RulesForm({ config, onSave, saving }: RulesFormProps) {
             value={perPurchaseLimit}
             onChange={setPerPurchaseLimit}
             min={0}
-            max={500}
+            max={PER_PURCHASE_MAX}
             step={5}
-            format={formatCurrencyLimit}
+            format={(v) => formatCurrencyLimit(v, PER_PURCHASE_MAX)}
           />
           <Slider
             label="Daily limit"
             value={dailyLimit}
             onChange={setDailyLimit}
             min={0}
-            max={1000}
+            max={DAILY_LIMIT_MAX}
             step={10}
-            format={formatCurrencyLimit}
+            format={(v) => formatCurrencyLimit(v, DAILY_LIMIT_MAX)}
           />
           <Slider
             label="Monthly limit"
             value={monthlyLimit}
             onChange={setMonthlyLimit}
             min={0}
-            max={5000}
+            max={MONTHLY_LIMIT_MAX}
             step={50}
-            format={formatCurrencyLimit}
+            format={(v) => formatCurrencyLimit(v, MONTHLY_LIMIT_MAX)}
           />
           <Slider
             label="Max purchases per week"
             value={numPurchaseLimit}
             onChange={setNumPurchaseLimit}
             min={0}
-            max={100}
+            max={WEEKLY_PURCHASE_MAX}
             step={1}
-            format={(v) => (v === 0 ? "No limit" : `${v}`)}
+            format={(v) => (v >= WEEKLY_PURCHASE_MAX ? "No limit" : `${v}`)}
           />
           <p className="text-xs text-[#86868b]">
-            Set per purchase, daily, monthly, or weekly limit to $0 for no limit.
+            Slide all the way right on any limit to set it to no limit.
           </p>
         </div>
       </section>
