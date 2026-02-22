@@ -17,12 +17,27 @@ function corsHeaders(origin: string | null) {
 }
 
 export async function middleware(request: NextRequest) {
+  const origin = request.headers.get("origin");
+
   // Handle CORS preflight directly — return before any other processing
   if (request.method === "OPTIONS") {
     return new NextResponse(null, {
       status: 204,
-      headers: corsHeaders(request.headers.get("origin")),
+      headers: corsHeaders(origin),
     });
+  }
+
+  // API routes use Bearer token auth, not session cookies.
+  // Skip Supabase session handling so middleware doesn't interfere with
+  // server-to-server calls (e.g. OpenClaw's Python plugin installer).
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    const response = NextResponse.next({ request });
+    // Attach CORS headers so browser and non-browser clients both work
+    const cors = corsHeaders(origin);
+    for (const [key, value] of Object.entries(cors)) {
+      response.headers.set(key, value);
+    }
+    return response;
   }
 
   return await updateSession(request);

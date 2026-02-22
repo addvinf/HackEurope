@@ -56,7 +56,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid request body — expected JSON with { code: \"XXXXXX\" }" },
+        { status: 400 },
+      );
+    }
     const { code } = body;
 
     if (!code || typeof code !== "string") {
