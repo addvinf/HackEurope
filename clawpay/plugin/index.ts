@@ -84,16 +84,30 @@ export default function register(api: OpenClawPluginApi) {
 
   // Observability for tool invocation
   api.on("before_tool_call", (event: unknown) => {
-    const toolName = (event as { toolName?: string }).toolName;
+    const typed = event as { toolName?: string; channel?: string; messageChannel?: string };
+    const toolName = typed.toolName;
     if (toolName === "clawpay_purchase" || toolName === "clawpay_complete") {
-      api.logger.info(`[clawpay] tool:start ${toolName}`);
+      const channel = typed.channel || typed.messageChannel || "unknown";
+      api.logger.info(`[clawpay] tool:start ${toolName} channel=${channel}`);
     }
   });
 
   api.on("after_tool_call", (event: unknown) => {
-    const typed = event as { toolName?: string; error?: string };
+    const typed = event as {
+      toolName?: string;
+      error?: string;
+      result?: { details?: { status?: string; purchase_status?: string }; status?: string };
+      details?: { status?: string; purchase_status?: string };
+    };
     if (typed.toolName === "clawpay_purchase" || typed.toolName === "clawpay_complete") {
-      const status = typed.error ? `error=${typed.error}` : "ok";
+      const outcome =
+        typed.result?.details?.purchase_status ||
+        typed.result?.details?.status ||
+        typed.result?.status ||
+        typed.details?.purchase_status ||
+        typed.details?.status ||
+        "unknown";
+      const status = typed.error ? `error=${typed.error}` : `ok outcome=${outcome}`;
       api.logger.info(`[clawpay] tool:end ${typed.toolName} ${status}`);
     }
   });

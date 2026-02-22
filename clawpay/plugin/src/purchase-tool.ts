@@ -5,8 +5,13 @@ export function createPurchaseTool(client: ClawPayClient) {
   return {
     name: "clawpay_purchase",
     description:
-      "Execute a purchase through ClawPay. The user must have already confirmed they want to buy. " +
-      "Returns approved (with card details for checkout), pending_approval (needs user OK), or rejected.",
+      "Execute a purchase through ClawPay. Evaluates spending rules, obtains approval if needed, " +
+      "and tops up the persistent virtual card. On success, returns a CDP injection payload that fills " +
+      "the card details directly into the checkout form; the card number never enters the LLM context. " +
+      "IMPORTANT: This is the only allowed purchase orchestration path. " +
+      "Call when user intent is explicit and item + amount + merchant are known. " +
+      "The browser should already be on the checkout/payment page. " +
+      "After checkout completes (success or failure), you MUST call clawpay_complete.",
     parameters: Type.Object({
       item: Type.String({ description: "What is being purchased" }),
       amount: Type.Number({ description: "Total price" }),
@@ -32,43 +37,147 @@ export function createPurchaseTool(client: ClawPayClient) {
       }),
     }),
 
-    async handler(params: {
-      item: string;
-      amount: number;
-      currency?: string;
-      merchant: string;
-      merchant_url?: string;
-      category?: string;
-      international?: boolean;
-      userConfirmed: boolean;
-    }) {
-      if (!params.userConfirmed) {
+      const normalized = {
+        item: input.item.trim(),
+        amount: input.amount,
+        currency: input.currency.trim().toUpperCase(),
+        userConfirmed: input.userConfirmed,
+        merchant: input.merchant.trim(),
+        merchant_url: input.merchant_url?.trim(),
+        category: input.category?.trim().toLowerCase(),
+        international: input.international,
+      };
+
+      const missing: string[] = [];
+      if (!normalized.item) missing.push("item");
+      if (!Number.isFinite(normalized.amount) || normalized.amount <= 0) {
+        missing.push("amount (> 0)");
+      }
+      if (!normalized.currency) missing.push("currency");
+      if (!normalized.merchant) missing.push("merchant");
+
+      if (missing.length > 0) {
         return {
-          error:
-            "You must confirm with the user before making a purchase (userConfirmed must be true).",
+          content: [
+            {
+              type: "text" as const,
+              text: `Missing or invalid required fields: ${missing.join(", ")}.`,
+            },
+          ],
         };
       }
 
-      if (!client.isPaired) {
+      if (!normalized.userConfirmed) {
         return {
           error: "ClawPay is not paired. Run /clawpay-pair <code> first.",
         };
       }
 
-      const result = await client.purchase(params);
+      try {
+        const result = await client.purchase({
+          item: normalized.item,
+          amount: normalized.amount,
+          currency: normalized.currency,
+          merchant: normalized.merchant,
+          merchant_url: normalized.merchant_url,
+          category: normalized.category,
+          international: normalized.international,
+        });
 
-      if ("error" in result) {
-        return { error: result.error };
-      }
+        if (result.status === "approved") {
+          // Purchase authorized; card details are included inline in the response.
+          // The card details never appear in text returned to the LLM.
+          const cdpPayload = buildCdpInjectionPayload(result.card);
+          const cdpSummary = cdpPayload.summary;
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: [
+                  "Purchase authorized (not yet completed)!",
+                  `Item: ${normalized.item}`,
+                  `Amount: $${normalized.amount} ${normalized.currency}`,
+                  `Merchant: ${normalized.merchant}`,
+                  `Transaction: ${result.transaction_id}`,
+                  `Top-up ID: ${result.topup_id}`,
+                  "",
+                  cdpSummary,
+                  "Use the browser tool to submit the checkout form now.",
+                  "",
+                  `IMPORTANT: After checkout, call clawpay_complete with topup_id=\"${result.topup_id}\" and success=true/false.`,
+                ].join("\n"),
+              },
+            ],
+            details: {
+              ...result,
+              purchase_status: "approved",
+              purchase_input: {
+                item: normalized.item,
+                amount: normalized.amount,
+                currency: normalized.currency,
+                merchant: normalized.merchant,
+              },
+              cdp_injection: cdpPayload,
+            },
+          };
+        }
+
+        if (result.status === "pending_approval") {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: [
+                  "Purchase requires approval.",
+                  `Item: ${normalized.item}`,
+                  `Amount: $${normalized.amount} ${normalized.currency}`,
+                  `Merchant: ${normalized.merchant}`,
+                  "",
+                  "An approval request has been sent. The user can approve via:",
+                  "- Their ClawPay dashboard (Approvals page)",
+                  "- Replying to the approval message on their messaging channel",
+                  "",
+                  `Approval expires: ${result.expires_at}`,
+                ].join("\n"),
+              },
+            ],
+            details: {
+              ...result,
+              purchase_status: "pending_approval",
+              purchase_input: {
+                item: normalized.item,
+                amount: normalized.amount,
+                currency: normalized.currency,
+                merchant: normalized.merchant,
+              },
+            },
+          };
+        }
 
       if (result.status === "approved") {
         return {
-          status: "approved",
-          transaction_id: result.transaction_id,
-          topup_id: result.topup_id,
-          message: `Purchase approved. Card ending in ${result.card_last4} is funded with ${params.currency || "USD"} ${params.amount.toFixed(2)}. Proceed to checkout — card details have been injected into the browser.`,
-          // Card details stay in plugin context for CDP injection — never sent to LLM
-          _card: result.card,
+          content: [
+            {
+              type: "text" as const,
+              text: [
+                "Purchase rejected by ClawPay rules.",
+                `Reason: ${result.reason}`,
+                "",
+                "The user can adjust their spending rules in the ClawPay dashboard.",
+              ].join("\n"),
+            },
+          ],
+          details: {
+            ...result,
+            purchase_status: "rejected",
+            purchase_input: {
+              item: normalized.item,
+              amount: normalized.amount,
+              currency: normalized.currency,
+              merchant: normalized.merchant,
+            },
+          },
         };
       }
 
