@@ -1,93 +1,39 @@
 import { Type } from "@sinclair/typebox";
 import type { ClawPayClient } from "./supabase-client.js";
 
-/**
- * clawpay_complete — the agent calls this after every approved purchase
- * (whether checkout succeeded or failed). It drains the persistent card
- * back to $0 and closes the top-up session.
- */
 export function createCompleteTool(client: ClawPayClient) {
   return {
     name: "clawpay_complete",
-    label: "ClawPay Complete",
     description:
-      "Complete a ClawPay purchase session by draining the virtual card back to $0. " +
-      "MUST be called after every approved clawpay_purchase, whether checkout succeeded or failed. " +
-      "Pass success=true if the checkout was submitted successfully, or success=false if it failed. " +
-      "This ensures the card is never left funded.",
+      "Call after checkout is done (success or failure). " +
+      "Drains the virtual card back to $0 and refunds any unused balance to the wallet.",
     parameters: Type.Object({
       topup_id: Type.String({
-        description: "The topup_id returned by clawpay_purchase",
+        description: "The topup_id returned from clawpay_purchase",
       }),
       success: Type.Boolean({
-        description: "Whether the checkout completed successfully",
+        description: "true if checkout succeeded, false otherwise",
       }),
     }),
-    async execute(_id: string, params: Record<string, unknown>) {
+
+    async handler(params: { topup_id: string; success: boolean }) {
       if (!client.isPaired) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "ClawPay is not paired.",
-            },
-          ],
-        };
+        return { error: "ClawPay is not paired." };
       }
 
-      const topup_id = String(params.topup_id || "");
-      const success = params.success === true;
+      const result = await client.complete(params.topup_id, params.success);
 
-      if (!topup_id) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Missing required field: topup_id",
-            },
-          ],
-        };
+      if (result.error) {
+        return { error: result.error };
       }
 
-      try {
-        const result = await client.drain({ topup_id, success });
-
-        if (result.status === "already_drained") {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Session already completed (reason: ${result.drain_reason}). Card is at $0.`,
-              },
-            ],
-          };
-        }
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: [
-                success
-                  ? `Checkout completed successfully. Card drained to $0.`
-                  : `Checkout failed. Card drained to $0 and transaction marked as cancelled.`,
-                `Drained amount: $${result.drained_amount}`,
-              ].join("\n"),
-            },
-          ],
-        };
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Unknown error";
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `ClawPay drain failed: ${message}. The card will auto-drain after the timeout.`,
-            },
-          ],
-        };
-      }
+      return {
+        status: result.status,
+        drained_amount: result.drained_amount,
+        message: params.success
+          ? `Checkout complete. Card drained — $${(result.drained_amount || 0).toFixed(2)} refunded to wallet.`
+          : "Checkout cancelled. Full amount refunded to wallet.",
+      };
     },
   };
 }

@@ -1,69 +1,40 @@
 import type { ClawPayClient } from "./supabase-client.js";
 
-/**
- * Parse an incoming message for approval responses.
- * Matches patterns like: "yes", "approve", "no", "reject", "cancel"
- */
-export function parseApprovalReply(content: string): {
-  approved: boolean;
-} | null {
-  const match = content.match(
-    /^\s*(yes|approve|no|reject|cancel)\s*$/i,
-  );
-  if (!match) return null;
+const APPROVE_WORDS = ["yes", "approve", "ok", "confirm", "y"];
+const REJECT_WORDS = ["no", "reject", "deny", "cancel", "n"];
 
-  const [, response] = match;
-  const approved = ["yes", "approve"].includes(response.toLowerCase());
-  return { approved };
+/**
+ * Parse a user message to see if it's an approval reply.
+ * Returns `{ approved: true/false }` or `null` if not a match.
+ */
+export function parseApprovalReply(
+  content: string,
+): { approved: boolean } | null {
+  const text = content.trim().toLowerCase();
+
+  if (APPROVE_WORDS.includes(text)) return { approved: true };
+  if (REJECT_WORDS.includes(text)) return { approved: false };
+
+  return null;
 }
 
 /**
- * Format an approval request message to send to the user.
- */
-export function formatApprovalMessage(params: {
-  item: string;
-  amount: number;
-  currency: string;
-  merchant: string;
-  expiresAt: string;
-}): string {
-  const expiresDate = new Date(params.expiresAt);
-  const minutes = Math.max(
-    0,
-    Math.round((expiresDate.getTime() - Date.now()) / 60000),
-  );
-
-  return [
-    `🔔 **ClawPay Approval Request**`,
-    ``,
-    `Item: ${params.item}`,
-    `Amount: $${params.amount} ${params.currency}`,
-    `Merchant: ${params.merchant}`,
-    ``,
-    `Reply with **yes** or **no**`,
-    ``,
-    `Expires in ${minutes} minutes.`,
-  ].join("\n");
-}
-
-/**
- * Handle resolving an approval via the ClawPay API.
+ * Resolve a pending approval via the ClawPay API.
+ * Returns a human-readable status string.
  */
 export async function resolveApproval(
   client: ClawPayClient,
   approved: boolean,
 ): Promise<string> {
-  try {
-    const result = await client.resolveApproval({
-      approved,
-    });
+  const result = await client.approve(approved);
 
-    if (result.status === "approved") {
-      return `Purchase approved! Transaction: ${result.transaction_id}, Top-up: ${result.topup_id}`;
-    }
-    return "Purchase rejected.";
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return `Failed to resolve approval: ${message}`;
+  if ("error" in result) {
+    return `Error: ${result.error}`;
   }
+
+  if (result.status === "approved") {
+    return "Purchase approved — card funded.";
+  }
+
+  return "Purchase rejected.";
 }
