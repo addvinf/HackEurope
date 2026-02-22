@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CardPreview } from "@/components/card-preview";
 
 /* ── Scroll-reveal hook ─────────────────────────────────── */
 function useScrollReveal() {
@@ -232,13 +231,43 @@ export default function Home() {
             className="mt-12 w-full max-w-sm"
             style={{ animation: "cardFloat 6s ease-in-out infinite" }}
           >
-            <CardPreview
-              last4="4242"
-              brand="visa"
-              name="OpenClaw Agent"
-              expMonth="12"
-              expYear="27"
-            />
+            {/* Dashboard-style virtual card */}
+            <div className="relative overflow-hidden aspect-[16/10] rounded-2xl p-6 bg-gradient-to-br from-[#1a1f36] to-[#0a2540] shadow-[0_4px_24px_rgba(10,37,64,0.3)] flex flex-col justify-between">
+              {/* Watermark logo */}
+              <img
+                src="/clawbotlogo.png"
+                alt=""
+                className="absolute right-[-10%] top-1/2 -translate-y-1/2 h-[80%] brightness-0 invert opacity-[0.04] pointer-events-none"
+              />
+              {/* Top row — brand + logo */}
+              <div className="flex items-center justify-between relative z-[1]">
+                <img src="/clawbotlogo.png" alt="ClawPay" className="h-7 brightness-0 invert opacity-80" />
+                <img src="/visa-logo.png" alt="Visa" className="h-5 brightness-0 invert opacity-70" />
+              </div>
+
+              {/* Chip icon */}
+              <div className="w-10 h-7 rounded-md bg-gradient-to-br from-[#d4a853] to-[#c49332]" />
+
+              {/* Balance */}
+              <p className="text-3xl font-semibold tracking-tight text-white">
+                $24.99
+              </p>
+
+              {/* Card number */}
+              <p className="font-mono text-sm text-white/70 tracking-wider">
+                &bull;&bull;&bull;&bull; &nbsp;&bull;&bull;&bull;&bull; &nbsp;&bull;&bull;&bull;&bull; &nbsp;4242
+              </p>
+
+              {/* Bottom row — status */}
+              <div className="flex items-end justify-between">
+                <span className="text-[#ff9f0a] font-semibold text-xs tracking-wide">
+                  PURCHASE IN PROGRESS
+                </span>
+                <span className="text-[11px] text-white/50">
+                  Drains in 4:32
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-wrap justify-center gap-6 mt-12">
