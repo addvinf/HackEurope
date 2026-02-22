@@ -109,7 +109,10 @@ export default function Home() {
         } bg-white/80 backdrop-blur-xl border-b border-black/5`}
       >
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-3">
-          <img src="/clawbotlogo.png" alt="ClawPay" className="h-7" />
+          <div className="flex items-center gap-2">
+            <img src="/clawbotlogo.png" alt="ClawPay" className="h-7" />
+            <span className="text-base font-semibold text-[#1d1d1f]">ClawPay</span>
+          </div>
           <div className="flex items-center gap-4">
             <Link
               href="/login"
@@ -132,9 +135,15 @@ export default function Home() {
         ref={heroRef}
         className="min-h-screen flex flex-col items-center justify-center px-6 text-center relative"
       >
+        <img
+          src="/clawbotlogo.png"
+          alt="ClawPay"
+          className="h-35 mb-8"
+          style={{ animation: "heroFadeInUp 0.8s ease-out both" }}
+        />
         <h1
           className="text-5xl sm:text-7xl lg:text-8xl font-semibold tracking-tight max-w-4xl leading-[1.05]"
-          style={{ animation: "heroFadeInUp 0.8s ease-out both" }}
+          style={{ animation: "heroFadeInUp 0.8s ease-out 0.1s both" }}
         >
           Payment guardrails
           <br />
@@ -154,7 +163,7 @@ export default function Home() {
 
         <p
           className="mt-6 text-lg sm:text-xl text-[#86868b] max-w-xl leading-relaxed"
-          style={{ animation: "heroFadeInUp 0.8s ease-out 0.15s both" }}
+          style={{ animation: "heroFadeInUp 0.8s ease-out 0.25s both" }}
         >
           Set spending limits, approve purchases in real time, and monitor every
           transaction your autonomous agent makes.
@@ -162,7 +171,7 @@ export default function Home() {
 
         <div
           className="flex flex-wrap justify-center gap-4 mt-8"
-          style={{ animation: "heroFadeInUp 0.8s ease-out 0.3s both" }}
+          style={{ animation: "heroFadeInUp 0.8s ease-out 0.4s both" }}
         >
           <Link
             href="/login"
