@@ -3,6 +3,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 
 const ALLOWED_ORIGINS = [
   "https://clawpay.tech",
+  "https://www.clawpay.tech",
   "https://webshop.clawpay.tech",
 ];
 

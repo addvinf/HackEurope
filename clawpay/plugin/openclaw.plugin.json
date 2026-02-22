@@ -6,7 +6,7 @@
   "configSchema": {
     "type": "object",
     "properties": {
-      "apiUrl": { "type": "string", "default": "https://clawpay.tech" },
+      "apiUrl": { "type": "string", "default": "https://www.clawpay.tech" },
       "apiToken": { "type": "string", "default": "" }
     },
     "additionalProperties": false

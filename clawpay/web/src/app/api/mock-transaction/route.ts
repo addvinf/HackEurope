@@ -5,6 +5,7 @@ const MOCK_TOKEN = "test_1234";
 
 const ALLOWED_ORIGINS = [
   "https://clawpay.tech",
+  "https://www.clawpay.tech",
   "https://webshop.clawpay.tech",
 ];
 

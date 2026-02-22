@@ -21,7 +21,7 @@ if ! echo "$CODE" | grep -qE '^[0-9]{6}$'; then
   fail "Pairing code must be exactly 6 digits."
 fi
 
-API_BASE="https://clawpay.tech"
+API_BASE="https://www.clawpay.tech"
 PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG_FILE="$PLUGIN_DIR/config.json"
 
@@ -29,7 +29,7 @@ printf '  %s\n' "$(bold "ClawPay Plugin Setup")"
 printf '  Exchanging pairing code ...\n'
 
 # Exchange pairing code for API token
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/api/pair" \
+RESPONSE=$(curl -sL -w "\n%{http_code}" -X POST "$API_BASE/api/pair" \
   -H "Content-Type: application/json" \
   -d "{\"code\":\"$CODE\"}")
 

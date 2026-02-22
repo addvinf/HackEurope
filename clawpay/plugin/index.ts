@@ -15,7 +15,7 @@ import { parseApprovalReply, resolveApproval } from "./src/approval-flow.js";
 
 export default function register(api: OpenClawPluginApi) {
   const config = api.pluginConfig ?? {};
-  const apiUrl = (config.apiUrl as string) || "https://clawpay.tech";
+  const apiUrl = (config.apiUrl as string) || "https://www.clawpay.tech";
   const apiToken = (config.apiToken as string) || "";
 
   const client = createClawPayClient(apiUrl, apiToken);
